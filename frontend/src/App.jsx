@@ -13,26 +13,27 @@ import ForgotPassword from './pages/auth/ForgotPassword';
 import Dashboard from './pages/dashboard';
 import Containers from './pages/containers';
 import Insights from './pages/insights';
+import Jobs from './pages/jobs';
 import UploadData from './pages/upload';
 import AdminSettings from './pages/admin';
 
 // Protected Route Wrapper
 function ProtectedRoute({ children }) {
   const isAuthenticated = useAuthStore((state) => state.isAuthenticated);
+  if (!isAuthenticated) return <Navigate to="/login" replace />;
+  return children;
+}
 
-  if (!isAuthenticated) {
-    return <Navigate to="/login" replace />;
-  }
-
+// RBAC Route Guard
+function RoleRoute({ roles, children }) {
+  const user = useAuthStore((state) => state.user);
+  if (roles && !roles.includes(user?.role)) return <Navigate to="/" replace />;
   return children;
 }
 
 function App() {
   const initTheme = useThemeStore((state) => state.initTheme);
-
-  useEffect(() => {
-    initTheme();
-  }, [initTheme]);
+  useEffect(() => { initTheme(); }, [initTheme]);
 
   return (
     <Router>
@@ -41,8 +42,8 @@ function App() {
         <Route path="/login" element={<Login />} />
         <Route path="/register" element={<Register />} />
         <Route path="/forgot-password" element={<ForgotPassword />} />
-        <Route 
-          path="/" 
+        <Route
+          path="/"
           element={
             <ProtectedRoute>
               <MainLayout />
@@ -52,8 +53,17 @@ function App() {
           <Route index element={<Dashboard />} />
           <Route path="containers" element={<Containers />} />
           <Route path="insights" element={<Insights />} />
-          <Route path="upload" element={<UploadData />} />
-          <Route path="admin" element={<AdminSettings />} />
+          <Route path="jobs" element={<Jobs />} />
+          <Route path="upload" element={
+            <RoleRoute roles={['ADMIN', 'ANALYST']}>
+              <UploadData />
+            </RoleRoute>
+          } />
+          <Route path="admin" element={
+            <RoleRoute roles={['ADMIN']}>
+              <AdminSettings />
+            </RoleRoute>
+          } />
         </Route>
 
         {/* Fallback routing */}

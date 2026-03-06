@@ -1,156 +1,103 @@
-import { useState, useEffect } from 'react';
-import { Ship, Mail, Lock, ArrowRight } from 'lucide-react';
+﻿import { useState } from 'react';
+import { Link, useNavigate } from 'react-router-dom';
 import { useAuthStore } from '../../store/authStore';
-import { useNavigate, Link } from 'react-router-dom';
 import api from '../../lib/api';
+import { toast } from 'sonner';
+import { Cpu, Eye, EyeOff, Loader2 } from 'lucide-react';
 
 export default function Login() {
-  const login = useAuthStore((state) => state.login);
-  const isAuthenticated = useAuthStore((state) => state.isAuthenticated);
+  const [form, setForm] = useState({ email: '', password: '' });
+  const [showPw, setShowPw] = useState(false);
+  const [loading, setLoading] = useState(false);
+  const login = useAuthStore(s => s.login);
   const navigate = useNavigate();
-  
-  const [email, setEmail] = useState('');
-  const [password, setPassword] = useState('');
-  const [isLoading, setIsLoading] = useState(false);
-  const [error, setError] = useState('');
-
-  useEffect(() => {
-    if (isAuthenticated) {
-      navigate('/', { replace: true });
-    }
-  }, [isAuthenticated, navigate]);
 
   const handleSubmit = async (e) => {
     e.preventDefault();
-    setIsLoading(true);
-    setError('');
-    
+    setLoading(true);
     try {
-      const response = await api.post('/auth/login', { email, password });
-      // Depending on actual response structure from backend:
-      const { user, token } = response.data; 
-      login(user || response.data, token || response.data.token);
+      const res = await api.post('/auth/login', form);
+      login(res.data.user, res.data.accessToken);
+      toast.success(`Welcome back, ${res.data.user.name}!`);
+      navigate('/');
     } catch (err) {
-      setError(err.response?.data?.message || 'Failed to login. Please check your credentials.');
+      toast.error(err.response?.data?.error?.message ?? 'Invalid credentials');
     } finally {
-      setIsLoading(false);
+      setLoading(false);
     }
   };
 
   return (
-    <div className="min-h-screen bg-background flex flex-col justify-center py-12 sm:px-6 lg:px-8 font-sans selection:bg-primary/30">
-      <div className="absolute top-8 left-8 flex items-center gap-3">
-        <div className="w-10 h-10 bg-primary/10 rounded-xl flex items-center justify-center">
-          <Ship className="w-5 h-5 text-primary" />
+    <div className="min-h-screen bg-background flex">
+      {/* Left panel */}
+      <div className="hidden lg:flex flex-col flex-1 bg-primary p-12 text-primary-foreground justify-between">
+        <div className="flex items-center gap-2.5">
+          <div className="w-8 h-8 rounded-lg bg-white/20 flex items-center justify-center">
+            <Cpu className="w-4 h-4" />
+          </div>
+          <span className="font-semibold text-sm">SmartContainer</span>
         </div>
-        <span className="font-bold text-foreground tracking-tight text-xl">CognifyPort</span>
+        <div>
+          <h2 className="text-3xl font-semibold leading-snug mb-4">
+            AI-powered risk intelligence<br />for every container.
+          </h2>
+          <p className="text-primary-foreground/70 text-sm">Detect anomalies. Score risk. Act faster.</p>
+        </div>
+        <p className="text-xs text-primary-foreground/60">Trusted by customs analysts worldwide</p>
       </div>
 
-      <div className="sm:mx-auto sm:w-full sm:max-w-[440px]">
-        <div className="bg-card border border-border shadow-xl rounded-3xl py-10 px-8 sm:px-12 animate-in fade-in slide-in-from-bottom-8 duration-700 fade-in-0">
-          
+      {/* Right panel */}
+      <div className="flex flex-1 flex-col items-center justify-center px-6 py-12 lg:px-16">
+        <div className="w-full max-w-sm">
           <div className="mb-8">
-            <h2 className="text-3xl font-bold tracking-tight text-foreground">Welcome back</h2>
-            <p className="mt-2 text-sm text-muted-foreground">
-              Please enter your details to sign in.
-            </p>
+            <h1 className="text-2xl font-semibold tracking-tight">Sign in</h1>
+            <p className="text-sm text-muted-foreground mt-1">Enter your credentials to access the platform</p>
           </div>
 
-          <form className="space-y-6" onSubmit={handleSubmit}>
-            {error && (
-              <div className="p-3 bg-destructive/10 border border-destructive/20 rounded-xl text-sm text-destructive font-medium">
-                {error}
-              </div>
-            )}
-
+          <form onSubmit={handleSubmit} className="space-y-4">
             <div className="space-y-1.5">
-              <label htmlFor="email" className="block text-sm font-medium text-foreground">
-                Email Address
-              </label>
-              <div className="relative">
-                <div className="absolute inset-y-0 left-0 pl-3.5 flex items-center pointer-events-none">
-                  <Mail className="h-5 w-5 text-muted-foreground" />
-                </div>
-                <input
-                  id="email"
-                  name="email"
-                  type="email"
-                  autoComplete="email"
-                  required
-                  value={email}
-                  onChange={(e) => setEmail(e.target.value)}
-                  className="block w-full rounded-xl border border-border bg-secondary/30 py-3 pl-11 pr-4 text-foreground shadow-sm placeholder:text-muted-foreground focus:bg-background focus:ring-2 focus:ring-primary focus:border-transparent sm:text-sm transition-all outline-none"
-                  placeholder="admin@cognify.com"
-                />
-              </div>
+              <label className="text-xs font-medium text-foreground">Email</label>
+              <input
+                type="email" required autoFocus
+                placeholder="you@example.com"
+                value={form.email}
+                onChange={e => setForm(p => ({...p, email: e.target.value}))}
+                className="w-full h-9 rounded-md border border-input bg-background px-3 text-sm placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-1 transition-shadow"
+              />
             </div>
-
             <div className="space-y-1.5">
               <div className="flex items-center justify-between">
-                <label htmlFor="password" className="block text-sm font-medium text-foreground">
-                  Password
-                </label>
-                <div className="text-sm">
-                  <Link to="/forgot-password" className="font-medium text-primary hover:text-primary/80 transition-colors">
-                    Forgot password?
-                  </Link>
-                </div>
+                <label className="text-xs font-medium text-foreground">Password</label>
+                <Link to="/forgot-password" className="text-xs text-primary hover:underline">Forgot password?</Link>
               </div>
               <div className="relative">
-                <div className="absolute inset-y-0 left-0 pl-3.5 flex items-center pointer-events-none">
-                  <Lock className="h-5 w-5 text-muted-foreground" />
-                </div>
                 <input
-                  id="password"
-                  name="password"
-                  type="password"
-                  autoComplete="current-password"
-                  required
-                  value={password}
-                  onChange={(e) => setPassword(e.target.value)}
-                  className="block w-full rounded-xl border border-border bg-secondary/30 py-3 pl-11 pr-4 text-foreground shadow-sm placeholder:text-muted-foreground focus:bg-background focus:ring-2 focus:ring-primary focus:border-transparent sm:text-sm transition-all outline-none"
+                  type={showPw ? 'text' : 'password'} required
                   placeholder="••••••••"
+                  value={form.password}
+                  onChange={e => setForm(p => ({...p, password: e.target.value}))}
+                  className="w-full h-9 rounded-md border border-input bg-background px-3 pr-9 text-sm placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-1 transition-shadow"
                 />
+                <button type="button" onClick={() => setShowPw(v => !v)}
+                  className="absolute right-2.5 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground">
+                  {showPw ? <EyeOff className="w-3.5 h-3.5" /> : <Eye className="w-3.5 h-3.5" />}
+                </button>
               </div>
             </div>
 
-            <div>
-              <button
-                type="submit"
-                disabled={isLoading}
-                className="group relative flex w-full justify-center items-center gap-2 rounded-xl bg-primary px-4 py-3.5 text-sm font-semibold text-primary-foreground shadow-md hover:bg-primary/90 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary transition-all disabled:opacity-70 disabled:cursor-not-allowed"
-              >
-                {isLoading ? (
-                  <span className="w-5 h-5 border-2 border-primary-foreground/30 border-t-primary-foreground rounded-full animate-spin"></span>
-                ) : (
-                  <>
-                    Sign In
-                    <ArrowRight className="w-4 h-4 group-hover:translate-x-1 transition-transform" />
-                  </>
-                )}
-              </button>
-            </div>
+            <button
+              type="submit" disabled={loading}
+              className="w-full h-9 rounded-md bg-primary text-primary-foreground text-sm font-medium hover:bg-primary/90 disabled:opacity-60 disabled:cursor-not-allowed flex items-center justify-center gap-2 transition-colors"
+            >
+              {loading && <Loader2 className="w-3.5 h-3.5 animate-spin" />}
+              {loading ? 'Signing in...' : 'Sign in'}
+            </button>
           </form>
 
-          <div className="mt-8">
-            <div className="relative">
-              <div className="absolute inset-0 flex items-center">
-                <div className="w-full border-t border-border" />
-              </div>
-              <div className="relative flex justify-center text-sm">
-                <span className="bg-card px-4 text-muted-foreground">Don't have an account?</span>
-              </div>
-            </div>
-
-            <div className="mt-6 flex justify-center">
-              <Link
-                to="/register"
-                className="text-sm font-semibold text-foreground hover:text-primary transition-colors"
-              >
-                Create a new account
-              </Link>
-            </div>
-          </div>
+          <p className="mt-6 text-center text-xs text-muted-foreground">
+            Don't have an account?{' '}
+            <Link to="/register" className="text-primary font-medium hover:underline">Create one</Link>
+          </p>
         </div>
       </div>
     </div>

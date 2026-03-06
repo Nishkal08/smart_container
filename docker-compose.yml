@@ -65,7 +65,7 @@ services:
   # ── Node.js Backend (Express) ──────────────────────────────────────────────
   backend:
     build:
-      context: ./backend
+      context: ./  backend
       dockerfile: Dockerfile
     container_name: sc_backend
     restart: unless-stopped

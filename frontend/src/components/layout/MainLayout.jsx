@@ -4,12 +4,12 @@ import TopNav from './TopNav';
 
 export default function MainLayout() {
   return (
-    <div className="flex h-screen w-full bg-background text-foreground overflow-hidden font-sans">
+    <div className="flex h-screen w-full bg-background overflow-hidden">
       <Sidebar />
-      <div className="flex flex-col flex-1 overflow-hidden relative">
+      <div className="flex flex-col flex-1 min-w-0 overflow-hidden">
         <TopNav />
-        <main className="flex-1 overflow-y-auto px-8 py-8 bg-background/50">
-          <div className="mx-auto max-w-7xl h-full pb-10">
+        <main className="flex-1 overflow-y-auto">
+          <div className="px-6 py-6 max-w-[1400px] mx-auto">
             <Outlet />
           </div>
         </main>

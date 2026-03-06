@@ -14,10 +14,15 @@ const getToken = () => {
   return token;
 };
 
-export const useAuthStore = create((set) => ({
+export const useAuthStore = create((set, get) => ({
   user: safeJsonParse(localStorage.getItem('user')),
   isAuthenticated: !!getToken(),
   token: getToken(),
+
+  // RBAC helpers
+  hasRole: (...roles) => roles.includes(get().user?.role),
+  isAdmin: () => get().user?.role === 'ADMIN',
+  isAnalyst: () => ['ADMIN', 'ANALYST'].includes(get().user?.role),
 
   login: (user, token) => {
     localStorage.setItem('user', JSON.stringify(user));

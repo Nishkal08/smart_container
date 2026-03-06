@@ -23,7 +23,7 @@ services:
     volumes:
       - postgres_dev_data:/var/lib/postgresql/data
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U smartcontainer"]
+      test: ["CMD-SHELL", "pg_isready -U smartcontainer -d smartcontainer_db"]
       interval: 5s
       timeout: 3s
       retries: 10
