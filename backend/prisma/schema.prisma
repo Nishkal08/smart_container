@@ -1,0 +1,149 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+// ── Enums ─────────────────────────────────────────────────────────────────────
+
+enum Role {
+  ADMIN
+  ANALYST
+  VIEWER
+}
+
+enum RiskLevel {
+  CLEAR
+  LOW_RISK
+  CRITICAL
+}
+
+enum JobStatus {
+  QUEUED
+  PROCESSING
+  COMPLETED
+  FAILED
+}
+
+enum ContainerSource {
+  UPLOAD
+  API
+  SEED
+}
+
+// ── Models ────────────────────────────────────────────────────────────────────
+
+model User {
+  id            String    @id @default(uuid())
+  email         String    @unique
+  password_hash String
+  name          String
+  role          Role      @default(ANALYST)
+  is_active     Boolean   @default(true)
+  created_at    DateTime  @default(now())
+  updated_at    DateTime  @updatedAt
+
+  containers    Container[]
+  batch_jobs    BatchJob[]
+
+  @@map("users")
+}
+
+model Container {
+  id                  String          @id @default(uuid())
+  container_id        String          @unique
+  declaration_date    String          // YYYY-MM-DD stored as string for flexibility
+  declaration_time    String          @default("00:00:00")
+  trade_regime        String          @default("Import")
+  origin_country      String
+  destination_port    String          @default("")
+  destination_country String
+  hs_code             String
+  importer_id         String
+  exporter_id         String
+  declared_value      Float
+  declared_weight     Float
+  measured_weight     Float
+  shipping_line       String          @default("")
+  dwell_time_hours    Float
+  source              ContainerSource @default(UPLOAD)
+  uploaded_by         String?
+  deleted_at          DateTime?
+  created_at          DateTime        @default(now())
+  updated_at          DateTime        @updatedAt
+
+  uploader    User?       @relation(fields: [uploaded_by], references: [id], onDelete: SetNull)
+  predictions Prediction[]
+
+  @@index([origin_country])
+  @@index([importer_id])
+  @@index([exporter_id])
+  @@index([declaration_date])
+  @@index([deleted_at])
+  @@map("containers")
+}
+
+model Prediction {
+  id                   String    @id @default(uuid())
+  container_id         String    @unique   // one prediction per container (latest wins via upsert)
+  risk_score           Float
+  risk_level           RiskLevel
+  explanation_summary  String
+  anomalies            Json      @default("[]")
+  weight_discrepancy_pct Float?
+  value_per_kg         Float?
+  model_version        String    @default("mock-v1.0")
+  is_mock              Boolean   @default(true)
+  batch_job_id         String?
+  created_at           DateTime  @default(now())
+  updated_at           DateTime  @updatedAt
+
+  container  Container  @relation(fields: [container_id], references: [id], onDelete: Cascade)
+  batch_job  BatchJob?  @relation(fields: [batch_job_id], references: [id], onDelete: SetNull)
+
+  @@index([risk_level])
+  @@index([created_at])
+  @@index([batch_job_id])
+  @@map("predictions")
+}
+
+model BatchJob {
+  id                String    @id @default(uuid())
+  name              String
+  status            JobStatus @default(QUEUED)
+  total_containers  Int
+  processed_count   Int       @default(0)
+  failed_count      Int       @default(0)
+  created_by        String
+  started_at        DateTime?
+  completed_at      DateTime?
+  created_at        DateTime  @default(now())
+  updated_at        DateTime  @updatedAt
+
+  creator     User         @relation(fields: [created_by], references: [id], onDelete: Cascade)
+  predictions Prediction[]
+
+  @@index([created_by])
+  @@index([status])
+  @@map("batch_jobs")
+}
+
+model AuditLog {
+  id            String   @id @default(uuid())
+  user_id       String?
+  action        String
+  resource_type String
+  resource_id   String?
+  ip_address    String?
+  user_agent    String?
+  metadata      Json?
+  created_at    DateTime @default(now())
+
+  @@index([user_id])
+  @@index([resource_type])
+  @@index([created_at])
+  @@map("audit_logs")
+}

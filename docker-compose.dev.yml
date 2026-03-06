@@ -1,0 +1,48 @@
+# docker-compose.dev.yml
+# Local development override — starts ONLY postgres and redis
+# with ports exposed to localhost so the Node backend can run
+# directly with `npm run dev` (not inside Docker).
+#
+# Usage:
+#   docker-compose -f docker-compose.dev.yml up -d
+#   docker-compose -f docker-compose.dev.yml down
+
+version: "3.9"
+
+services:
+  postgres:
+    image: postgres:16-alpine
+    container_name: sc_postgres_dev
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: smartcontainer
+      POSTGRES_PASSWORD: smartcontainer_pass
+      POSTGRES_DB: smartcontainer_db
+    ports:
+      - "15432:5432"  # Exposed to localhost for prisma / studio (avoids local PG conflict)
+    volumes:
+      - postgres_dev_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U smartcontainer"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+
+  redis:
+    image: redis:7-alpine
+    container_name: sc_redis_dev
+    restart: unless-stopped
+    command: redis-server --save 60 1 --loglevel warning
+    ports:
+      - "6379:6379"   # Exposed to localhost for BullMQ / ioredis
+    volumes:
+      - redis_dev_data:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+
+volumes:
+  postgres_dev_data:
+  redis_dev_data:

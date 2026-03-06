@@ -1,0 +1,106 @@
+version: "3.9"
+
+services:
+  # ── PostgreSQL ─────────────────────────────────────────────────────────────
+  postgres:
+    image: postgres:16-alpine
+    container_name: sc_postgres
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER:-smartcontainer}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-smartcontainer_pass}
+      POSTGRES_DB: ${POSTGRES_DB:-smartcontainer_db}
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    networks:
+      - smart_container_net
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-smartcontainer}"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    # NOT exposed externally — backend connects over internal network
+
+  # ── Redis ──────────────────────────────────────────────────────────────────
+  redis:
+    image: redis:7-alpine
+    container_name: sc_redis
+    restart: unless-stopped
+    command: redis-server --save 60 1 --loglevel warning
+    volumes:
+      - redis_data:/data
+    networks:
+      - smart_container_net
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  # ── ML Service (FastAPI) ───────────────────────────────────────────────────
+  ml_service:
+    build:
+      context: ./ml_service
+      dockerfile: Dockerfile
+    container_name: sc_ml_service
+    restart: unless-stopped
+    environment:
+      INTERNAL_API_KEY: ${ML_SERVICE_API_KEY:-change_me_internal_api_key_must_match_ml_service}
+      IS_MOCK_MODEL: ${IS_MOCK_MODEL:-true}
+      MODEL_VERSION: ${MODEL_VERSION:-mock-v1.0}
+      CLEAR_THRESHOLD: ${CLEAR_THRESHOLD:-30}
+      LOW_RISK_THRESHOLD: ${LOW_RISK_THRESHOLD:-60}
+    networks:
+      - smart_container_net
+    depends_on:
+      - postgres
+    healthcheck:
+      test: ["CMD-SHELL", "curl -f -H 'X-Internal-API-Key: ${ML_SERVICE_API_KEY:-change_me_internal_api_key_must_match_ml_service}' http://localhost:8000/health || exit 1"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 20s
+    # NOT exposed externally — backend connects over internal network
+
+  # ── Node.js Backend (Express) ──────────────────────────────────────────────
+  backend:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    container_name: sc_backend
+    restart: unless-stopped
+    ports:
+      - "3000:3000"
+    environment:
+      NODE_ENV: production
+      PORT: 3000
+      DATABASE_URL: postgresql://${POSTGRES_USER:-smartcontainer}:${POSTGRES_PASSWORD:-smartcontainer_pass}@postgres:5432/${POSTGRES_DB:-smartcontainer_db}
+      REDIS_URL: redis://redis:6379
+      JWT_SECRET: ${JWT_SECRET}
+      JWT_REFRESH_SECRET: ${JWT_REFRESH_SECRET}
+      ML_SERVICE_URL: http://ml_service:8000
+      ML_SERVICE_API_KEY: ${ML_SERVICE_API_KEY:-change_me_internal_api_key_must_match_ml_service}
+      ALLOWED_ORIGINS: ${ALLOWED_ORIGINS:-http://localhost:5173}
+    networks:
+      - smart_container_net
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+      ml_service:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD-SHELL", "curl -f http://localhost:3000/api/v1/health || exit 1"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 30s
+
+networks:
+  smart_container_net:
+    driver: bridge
+
+volumes:
+  postgres_data:
+  redis_data:
