@@ -33,6 +33,8 @@ const worker = new Worker(
       importer_id: container.importer_id,
       exporter_id: container.exporter_id,
       shipping_line: container.shipping_line,
+      destination_port: container.destination_port,
+      destination_country: container.destination_country,
     });
 
     // Persist prediction
@@ -43,6 +45,7 @@ const worker = new Worker(
         risk_level: mlResult.risk_level,
         explanation_summary: mlResult.explanation_summary,
         anomalies: mlResult.anomalies || [],
+        feature_contributions: mlResult.feature_contributions || [],
         weight_discrepancy_pct: mlResult.weight_discrepancy_pct ?? null,
         value_per_kg: mlResult.value_per_kg ?? null,
         model_version: mlResult.model_version || 'mock-v1.0',
@@ -55,6 +58,7 @@ const worker = new Worker(
         risk_level: mlResult.risk_level,
         explanation_summary: mlResult.explanation_summary,
         anomalies: mlResult.anomalies || [],
+        feature_contributions: mlResult.feature_contributions || [],
         weight_discrepancy_pct: mlResult.weight_discrepancy_pct ?? null,
         value_per_kg: mlResult.value_per_kg ?? null,
         model_version: mlResult.model_version || 'mock-v1.0',

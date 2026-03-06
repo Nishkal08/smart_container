@@ -1,9 +1,11 @@
 ﻿import { useState } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { toast } from 'sonner';
-import { Search, Filter, X, Loader2, RefreshCw, Trash2, Zap, ChevronLeft, ChevronRight } from 'lucide-react';
+import { Search, Filter, X, Loader2, RefreshCw, Trash2, Zap, ChevronLeft, ChevronRight, ExternalLink } from 'lucide-react';
+import { Link } from 'react-router-dom';
 import api from '../../lib/api';
 import RiskBadge from '../../components/ui/RiskBadge';
+import CountryFlag from '../../components/ui/CountryFlag';
 import { useAuthStore } from '../../store/authStore';
 
 const RISK_LEVELS = ['ALL', 'CLEAR', 'LOW_RISK', 'CRITICAL'];
@@ -28,13 +30,14 @@ export default function Containers() {
   const [rescoring, setRescoring] = useState(null);
 
   const { data, isLoading, isFetching } = useQuery({
-    queryKey: ['containers', page, riskFilter],
+    queryKey: ['containers', page, riskFilter, search],
     queryFn: () => {
       const params = new URLSearchParams({ page, limit: 20 });
       if (riskFilter !== 'ALL') params.set('risk_level', riskFilter);
+      if (search.trim()) params.set('search', search.trim());
       return api.get(`/containers?${params}`).then(r => r.data);
     },
-    keepPreviousData: true,
+    placeholderData: (previousData) => previousData,
   });
 
   const deleteMutation = useMutation({
@@ -64,14 +67,10 @@ export default function Containers() {
   };
 
   const rows = data?.containers ?? data?.items ?? [];
-  const total = data?.total ?? 0;
-  const totalPages = Math.ceil(total / 20) || 1;
+  const total = data?.pagination?.total ?? data?.total ?? 0;
+  const totalPages = data?.pagination?.totalPages ?? (Math.ceil(total / 20) || 1);
 
-  const filtered = search
-    ? rows.filter(r => r.container_id?.toLowerCase().includes(search.toLowerCase()) ||
-        r.origin_country?.toLowerCase().includes(search.toLowerCase()) ||
-        r.shipper_id?.toLowerCase().includes(search.toLowerCase()))
-    : rows;
+  const filtered = rows;
 
   return (
     <div className="space-y-5 animate-fade-in">
@@ -81,7 +80,7 @@ export default function Containers() {
           <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-muted-foreground" />
           <input
             value={search}
-            onChange={e => setSearch(e.target.value)}
+            onChange={e => { setSearch(e.target.value); setPage(1); }}
             placeholder="Search container, country, shipper…"
             className="w-full pl-8 pr-3 py-2 text-sm bg-card border border-border rounded-md focus:outline-none focus:ring-1 focus:ring-ring"
           />
@@ -130,7 +129,12 @@ export default function Containers() {
                 <td className="px-4 py-3">
                   <span className="font-mono text-xs font-medium">{c.container_id}</span>
                 </td>
-                <td className="px-4 py-3 text-muted-foreground">{c.origin_country}</td>
+                <td className="px-4 py-3 text-muted-foreground">
+                  <span className="flex items-center gap-1.5">
+                    <CountryFlag code={c.origin_country} size="sm" />
+                    {c.origin_country}
+                  </span>
+                </td>
                 <td className="px-4 py-3 max-w-[140px] truncate">{c.shipper_id}</td>
                 <td className="px-4 py-3 font-mono text-xs">{c.hs_code}</td>
                 <td className="px-4 py-3 tabular-nums">{c.weight_kg?.toLocaleString()}</td>
@@ -233,6 +237,11 @@ export default function Containers() {
                   {rescoring === selected.id ? <Loader2 className="w-4 h-4 animate-spin" /> : <Zap className="w-4 h-4" />}
                   Re-score
                 </button>
+                <Link
+                  to={`/containers/${selected.id}`}
+                  className="w-full flex items-center justify-center gap-2 border border-border rounded-md px-4 py-2 text-sm font-medium hover:bg-muted transition-colors">
+                  <ExternalLink className="w-4 h-4" /> Full Details
+                </Link>
                 {isAdmin && (
                   <button
                     onClick={() => {

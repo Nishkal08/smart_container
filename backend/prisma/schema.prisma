@@ -93,6 +93,7 @@ model Prediction {
   risk_level           RiskLevel
   explanation_summary  String
   anomalies            Json      @default("[]")
+  feature_contributions Json     @default("[]")
   weight_discrepancy_pct Float?
   value_per_kg         Float?
   model_version        String    @default("mock-v1.0")

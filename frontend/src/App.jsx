@@ -16,6 +16,8 @@ import Insights from './pages/insights';
 import Jobs from './pages/jobs';
 import UploadData from './pages/upload';
 import AdminSettings from './pages/admin';
+import Predictions from './pages/predictions';
+import ContainerDetail from './pages/containers/detail';
 
 // Protected Route Wrapper
 function ProtectedRoute({ children }) {
@@ -52,6 +54,8 @@ function App() {
         >
           <Route index element={<Dashboard />} />
           <Route path="containers" element={<Containers />} />
+          <Route path="containers/:id" element={<ContainerDetail />} />
+          <Route path="predictions" element={<Predictions />} />
           <Route path="insights" element={<Insights />} />
           <Route path="jobs" element={<Jobs />} />
           <Route path="upload" element={

@@ -1,7 +1,8 @@
 ﻿import { useState, useRef } from 'react';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
+import { Link } from 'react-router-dom';
 import { toast } from 'sonner';
-import { Upload, FileText, X, CheckCircle, AlertTriangle, Loader2 } from 'lucide-react';
+import { Upload, FileText, X, CheckCircle, AlertTriangle, Loader2, ArrowRight } from 'lucide-react';
 import api from '../../lib/api';
 
 function StatItem({ label, value, colorClass }) {
@@ -26,9 +27,10 @@ export default function UploadPage() {
       headers: { 'Content-Type': 'multipart/form-data' },
     }),
     onSuccess: (res) => {
-      setResult(res.data);
+      const d = res.data ?? res;
+      setResult(d);
       setFile(null);
-      toast.success('Upload completed successfully');
+      toast.success(`Upload complete — ${d.uploaded ?? (d.created + d.updated)} containers processed`);
       qc.invalidateQueries({ queryKey: ['containers'] });
       qc.invalidateQueries({ queryKey: ['analytics'] });
       if (predict) qc.invalidateQueries({ queryKey: ['jobs'] });
@@ -137,23 +139,29 @@ export default function UploadPage() {
             <StatItem label="Created" value={result.created} colorClass="text-emerald-600" />
             <StatItem label="Updated" value={result.updated} colorClass="text-blue-600" />
             <StatItem label="Skipped" value={result.skipped} colorClass="text-amber-600" />
-            <StatItem label="Errors" value={result.errors} colorClass="text-red-600" />
+            <StatItem label="Errors" value={(result.parse_errors?.length ?? 0) + (result.db_errors?.length ?? 0)} colorClass="text-red-600" />
           </div>
-          {result.job_id && (
-            <div className="rounded-md bg-blue-500/10 border border-blue-500/20 p-3">
-              <p className="text-xs font-medium text-blue-700 dark:text-blue-400">Prediction job started</p>
-              <p className="text-xs text-muted-foreground mt-0.5">Job ID: <span className="font-mono">{result.job_id}</span> — track progress in Jobs page</p>
+          {result.batch_job?.id && (
+            <div className="rounded-md bg-blue-500/10 border border-blue-500/20 p-3 flex items-center justify-between">
+              <div>
+                <p className="text-xs font-medium text-blue-700 dark:text-blue-400">Prediction job queued</p>
+                <p className="text-xs text-muted-foreground mt-0.5 font-mono">{result.batch_job.id}</p>
+              </div>
+              <Link to="/jobs" className="text-xs text-primary flex items-center gap-1 hover:underline shrink-0">
+                Track progress <ArrowRight className="w-3 h-3" />
+              </Link>
             </div>
           )}
-          {result.error_details?.length > 0 && (
+          {((result.parse_errors?.length ?? 0) + (result.db_errors?.length ?? 0)) > 0 && (
             <div className="rounded-md bg-red-500/10 border border-red-500/20 p-3">
               <p className="text-xs font-medium text-red-600 mb-1">
                 <AlertTriangle className="inline w-3 h-3 mr-1" />
-                {result.error_details.length} row(s) had errors
+                {(result.parse_errors?.length ?? 0) + (result.db_errors?.length ?? 0)} row(s) had issues
               </p>
               <ul className="text-xs text-red-600/80 space-y-0.5 list-disc list-inside">
-                {result.error_details.slice(0, 5).map((e, i) => <li key={i}>{e}</li>)}
-                {result.error_details.length > 5 && <li>…and {result.error_details.length - 5} more</li>}
+                {[...(result.parse_errors ?? []), ...(result.db_errors ?? [])].slice(0, 5).map((e, i) => (
+                  <li key={i}>{typeof e === 'string' ? e : `Row ${e.row}: ${e.reason}`}</li>
+                ))}
               </ul>
             </div>
           )}

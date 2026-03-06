@@ -35,6 +35,8 @@ async function predictContainer(containerId) {
     importer_id: container.importer_id,
     exporter_id: container.exporter_id,
     shipping_line: container.shipping_line,
+    destination_port: container.destination_port,
+    destination_country: container.destination_country,
   });
 
   // Persist prediction
@@ -45,6 +47,7 @@ async function predictContainer(containerId) {
       risk_level: mlResult.risk_level,
       explanation_summary: mlResult.explanation_summary,
       anomalies: mlResult.anomalies || [],
+      feature_contributions: mlResult.feature_contributions || [],
       weight_discrepancy_pct: mlResult.weight_discrepancy_pct ?? null,
       value_per_kg: mlResult.value_per_kg ?? null,
       model_version: mlResult.model_version || 'mock-v1.0',
@@ -108,7 +111,7 @@ async function queueBatchPrediction({ container_ids, job_name, createdBy }) {
   return batchJob;
 }
 
-async function listPredictions({ page, limit, risk_level, date_from, date_to, is_mock }) {
+async function listPredictions({ page, limit, risk_level, date_from, date_to, is_mock, search }) {
   const skip = (page - 1) * limit;
   const where = {};
 
@@ -118,6 +121,15 @@ async function listPredictions({ page, limit, risk_level, date_from, date_to, is
     where.created_at = {};
     if (date_from) where.created_at.gte = new Date(date_from);
     if (date_to) where.created_at.lte = new Date(date_to + 'T23:59:59Z');
+  }
+  if (search) {
+    where.container = {
+      OR: [
+        { container_id: { contains: search, mode: 'insensitive' } },
+        { importer_id: { contains: search, mode: 'insensitive' } },
+        { exporter_id: { contains: search, mode: 'insensitive' } },
+      ],
+    };
   }
 
   const [predictions, total] = await Promise.all([
@@ -205,6 +217,8 @@ async function reScoreContainer(containerId) {
     importer_id: container.importer_id,
     exporter_id: container.exporter_id,
     shipping_line: container.shipping_line,
+    destination_port: container.destination_port,
+    destination_country: container.destination_country,
   });
 
   // Upsert — update existing prediction or insert new one
@@ -215,6 +229,7 @@ async function reScoreContainer(containerId) {
       risk_level: mlResult.risk_level,
       explanation_summary: mlResult.explanation_summary,
       anomalies: mlResult.anomalies || [],
+      feature_contributions: mlResult.feature_contributions || [],
       weight_discrepancy_pct: mlResult.weight_discrepancy_pct ?? null,
       value_per_kg: mlResult.value_per_kg ?? null,
       model_version: mlResult.model_version || 'mock-v1.0',
@@ -226,6 +241,7 @@ async function reScoreContainer(containerId) {
       risk_level: mlResult.risk_level,
       explanation_summary: mlResult.explanation_summary,
       anomalies: mlResult.anomalies || [],
+      feature_contributions: mlResult.feature_contributions || [],
       weight_discrepancy_pct: mlResult.weight_discrepancy_pct ?? null,
       value_per_kg: mlResult.value_per_kg ?? null,
       model_version: mlResult.model_version || 'mock-v1.0',

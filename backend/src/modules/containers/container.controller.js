@@ -45,7 +45,12 @@ function handleUpload(req, res) {
 }
 
 async function listContainers(req, res) {
-  const result = await containerService.listContainers(req.query);
+  const query = {
+    ...req.query,
+    page: parseInt(req.query.page, 10) || 1,
+    limit: parseInt(req.query.limit, 10) || 20,
+  };
+  const result = await containerService.listContainers(query);
   return success(res, result);
 }
 

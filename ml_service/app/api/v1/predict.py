@@ -76,4 +76,6 @@ def predict_batch(
         succeeded=len(results),
         failed=len(errors),
         errors=errors,
+        model_version=get_settings().MODEL_VERSION,
+        is_mock=get_settings().IS_MOCK_MODEL,
     )

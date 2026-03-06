@@ -16,6 +16,7 @@ const listPredictionsQuerySchema = z.object({
   date_from: z.string().regex(/^\d{4}-\d{2}-\d{2}$/).optional(),
   date_to: z.string().regex(/^\d{4}-\d{2}-\d{2}$/).optional(),
   is_mock: z.enum(['true', 'false']).optional(),
+  search: z.string().optional(),
 });
 
 module.exports = { singlePredictSchema, batchPredictSchema, listPredictionsQuerySchema };

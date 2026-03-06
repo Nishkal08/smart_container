@@ -20,9 +20,9 @@ export default function Admin() {
     queryFn: () => api.get('/users').then(r => r.data),
   });
 
-  const { data: stats, isLoading: statsLoad, refetch: refetchStats } = useQuery({
+  const { data: statsData, isLoading: statsLoad, refetch: refetchStats } = useQuery({
     queryKey: ['admin', 'stats'],
-    queryFn: () => api.get('/admin/stats').then(r => r.data),
+    queryFn: () => api.get('/admin/stats').then(r => r.data?.stats ?? r.data),
   });
 
   const patchUser = useMutation({
@@ -56,10 +56,10 @@ export default function Admin() {
           ))
         ) : (
           [
-            { label: 'Total Users', value: stats?.total_users, icon: Users, cls: 'bg-blue-500/10 text-blue-600' },
-            { label: 'Total Containers', value: stats?.total_containers, icon: Database, cls: 'bg-indigo-500/10 text-indigo-600' },
-            { label: 'Total Predictions', value: stats?.total_predictions, icon: Zap, cls: 'bg-amber-500/10 text-amber-600' },
-            { label: 'Cache Entries', value: stats?.cache_entries ?? stats?.cache_size ?? '—', icon: Shield, cls: 'bg-emerald-500/10 text-emerald-600' },
+            { label: 'Total Users', value: statsData?.users?.total, icon: Users, cls: 'bg-blue-500/10 text-blue-600' },
+            { label: 'Total Containers', value: statsData?.containers?.total, icon: Database, cls: 'bg-indigo-500/10 text-indigo-600' },
+            { label: 'Total Predictions', value: statsData?.predictions?.total, icon: Zap, cls: 'bg-amber-500/10 text-amber-600' },
+            { label: 'Queue Depth', value: statsData?.jobs?.queue_depth ?? 0, icon: Shield, cls: 'bg-emerald-500/10 text-emerald-600' },
           ].map(({ label, value, icon: Icon, cls }) => (
             <div key={label} className="rounded-lg border border-border bg-card p-5 flex items-start justify-between gap-4">
               <div>

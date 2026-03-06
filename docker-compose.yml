@@ -1,5 +1,3 @@
-version: "3.9"
-
 services:
   # ── PostgreSQL ─────────────────────────────────────────────────────────────
   postgres:
@@ -46,8 +44,8 @@ services:
     restart: unless-stopped
     environment:
       INTERNAL_API_KEY: ${ML_SERVICE_API_KEY:-change_me_internal_api_key_must_match_ml_service}
-      IS_MOCK_MODEL: ${IS_MOCK_MODEL:-true}
-      MODEL_VERSION: ${MODEL_VERSION:-mock-v1.0}
+      IS_MOCK_MODEL: ${IS_MOCK_MODEL:-false}
+      MODEL_VERSION: ${MODEL_VERSION:-xgb-v2.0}
       CLEAR_THRESHOLD: ${CLEAR_THRESHOLD:-30}
       LOW_RISK_THRESHOLD: ${LOW_RISK_THRESHOLD:-60}
     networks:
@@ -65,7 +63,7 @@ services:
   # ── Node.js Backend (Express) ──────────────────────────────────────────────
   backend:
     build:
-      context: ./  backend
+      context: ./backend
       dockerfile: Dockerfile
     container_name: sc_backend
     restart: unless-stopped

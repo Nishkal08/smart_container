@@ -22,7 +22,12 @@ async function predictBatch(req, res) {
 }
 
 async function listPredictions(req, res) {
-  const result = await predictionService.listPredictions(req.query);
+  const query = {
+    ...req.query,
+    page: parseInt(req.query.page, 10) || 1,
+    limit: parseInt(req.query.limit, 10) || 20,
+  };
+  const result = await predictionService.listPredictions(query);
   return success(res, result);
 }
 

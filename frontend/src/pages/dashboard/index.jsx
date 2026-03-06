@@ -7,6 +7,7 @@ import {
 import { Package, ShieldAlert, CheckCircle, TrendingUp, ArrowRight, AlertTriangle } from 'lucide-react';
 import api from '../../lib/api';
 import RiskBadge from '../../components/ui/RiskBadge';
+import CountryFlag from '../../components/ui/CountryFlag';
 
 const PIE_COLORS = { CLEAR: '#10b981', LOW_RISK: '#f59e0b', CRITICAL: '#ef4444' };
 
@@ -40,7 +41,7 @@ export default function Dashboard() {
     queryFn: () => api.get('/analytics/trends?period=30d').then(r => r.data),
   });
 
-  const { data: distribution } = useQuery({
+  const { data: distribution, isLoading: distLoad } = useQuery({
     queryKey: ['analytics', 'risk-distribution'],
     queryFn: () => api.get('/analytics/risk-distribution').then(r => r.data),
   });
@@ -52,7 +53,12 @@ export default function Dashboard() {
 
   const { data: recentPredictions } = useQuery({
     queryKey: ['predictions', 'recent'],
-    queryFn: () => api.get('/predictions?limit=5&sortBy=created_at&order=desc').then(r => r.data),
+    queryFn: () => api.get('/predictions?page=1&limit=5&sortBy=created_at&order=desc').then(r => r.data),
+  });
+
+  const { data: countryRisk } = useQuery({
+    queryKey: ['analytics', 'country-risk'],
+    queryFn: () => api.get('/analytics/country-risk?limit=6').then(r => r.data),
   });
 
   const pieData = distribution
@@ -124,7 +130,9 @@ export default function Dashboard() {
         <div className="rounded-lg border border-border bg-card p-5">
           <h3 className="text-sm font-semibold mb-1">Risk Distribution</h3>
           <p className="text-xs text-muted-foreground mb-4">All predictions</p>
-          {pieData.length > 0 ? (
+          {distLoad ? (
+            <div className="h-52 animate-pulse bg-muted rounded-md" />
+          ) : pieData.length > 0 ? (
             <ResponsiveContainer width="100%" height={210}>
               <PieChart>
                 <Pie data={pieData} cx="50%" cy="50%" innerRadius={55} outerRadius={80}
@@ -139,7 +147,7 @@ export default function Dashboard() {
               </PieChart>
             </ResponsiveContainer>
           ) : (
-            <div className="h-52 animate-pulse bg-muted rounded-md" />
+            <div className="h-52 flex items-center justify-center text-sm text-muted-foreground">No prediction data yet</div>
           )}
         </div>
       </div>
@@ -150,7 +158,7 @@ export default function Dashboard() {
         <div className="rounded-lg border border-border bg-card">
           <div className="flex items-center justify-between px-5 py-4 border-b border-border">
             <h3 className="text-sm font-semibold">Top Risky Shippers</h3>
-            <Link to="/insights" className="text-xs text-primary hover:underline flex items-center gap-1">
+            <Link to="/predictions" className="text-xs text-primary hover:underline flex items-center gap-1">
               View all <ArrowRight className="w-3 h-3" />
             </Link>
           </div>
@@ -181,21 +189,24 @@ export default function Dashboard() {
         <div className="rounded-lg border border-border bg-card">
           <div className="flex items-center justify-between px-5 py-4 border-b border-border">
             <h3 className="text-sm font-semibold">Recent Predictions</h3>
-            <Link to="/insights" className="text-xs text-primary hover:underline flex items-center gap-1">
+            <Link to="/predictions" className="text-xs text-primary hover:underline flex items-center gap-1">
               View all <ArrowRight className="w-3 h-3" />
             </Link>
           </div>
           <div className="divide-y divide-border">
             {(recentPredictions?.predictions ?? recentPredictions?.items ?? []).slice(0, 5).map((p, i) => (
-              <div key={i} className="flex items-center justify-between px-5 py-3">
-                <div className="min-w-0">
-                  <p className="text-sm font-mono font-medium truncate">{p.container?.container_id ?? p.container_id}</p>
-                  <p className="text-xs text-muted-foreground">{p.explanation_summary?.slice(0, 40)}...</p>
+              <Link key={i} to={`/containers/${p.container?.id ?? p.container_id}`} className="flex items-center justify-between px-5 py-3 hover:bg-muted/30 transition-colors">
+                <div className="flex items-center gap-2.5 min-w-0">
+                  <CountryFlag code={p.container?.origin_country} size="sm" />
+                  <div className="min-w-0">
+                    <p className="text-sm font-mono font-medium truncate">{p.container?.container_id ?? p.container_id}</p>
+                    <p className="text-xs text-muted-foreground">{p.explanation_summary?.slice(0, 40)}...</p>
+                  </div>
                 </div>
                 <div className="shrink-0 ml-3">
                   <RiskBadge level={p.risk_level} score={p.risk_score} showScore />
                 </div>
-              </div>
+              </Link>
             ))}
             {!recentPredictions && Array(5).fill(0).map((_, i) => (
               <div key={i} className="h-14 mx-5 my-1 animate-pulse bg-muted rounded" />

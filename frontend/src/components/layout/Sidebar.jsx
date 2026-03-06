@@ -1,7 +1,7 @@
 ﻿import { NavLink, useNavigate } from 'react-router-dom';
 import {
   LayoutDashboard, Container, BarChart3, UploadCloud,
-  Layers, ShieldCheck, LogOut, ChevronRight, Cpu,
+  Layers, ShieldCheck, LogOut, ChevronRight, Cpu, Crosshair,
 } from 'lucide-react';
 import { useAuthStore } from '../../store/authStore';
 import { cn } from '../../lib/utils';
@@ -11,7 +11,8 @@ import { toast } from 'sonner';
 const NAV = [
   { label: 'Dashboard',   to: '/',           icon: LayoutDashboard, roles: null },
   { label: 'Containers',  to: '/containers', icon: Container,       roles: null },
-  { label: 'Predictions', to: '/insights',   icon: BarChart3,       roles: null },
+  { label: 'Predictions', to: '/predictions', icon: Crosshair,      roles: null },
+  { label: 'Analytics',   to: '/insights',   icon: BarChart3,       roles: null },
   { label: 'Batch Jobs',  to: '/jobs',       icon: Layers,          roles: null },
   { label: 'Upload Data', to: '/upload',     icon: UploadCloud,     roles: null },
   { label: 'Admin',       to: '/admin',      icon: ShieldCheck,     roles: ['ADMIN'] },
