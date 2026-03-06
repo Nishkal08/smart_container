@@ -32,6 +32,34 @@ const COUNTRY_TO_ISO = {
   'UAE': 'AE', 'QATAR': 'QA', 'KUWAIT': 'KW', 'JORDAN': 'JO',
 };
 
+// ISO 2-letter code → friendly full country name
+const ISO_TO_NAME = {
+  AF: 'Afghanistan', AL: 'Albania', DZ: 'Algeria', AO: 'Angola', AR: 'Argentina',
+  AU: 'Australia', AT: 'Austria', BD: 'Bangladesh', BE: 'Belgium', BR: 'Brazil',
+  BG: 'Bulgaria', BY: 'Belarus', KH: 'Cambodia', CM: 'Cameroon', CA: 'Canada',
+  CF: 'Central African Republic', CL: 'Chile', CN: 'China', CO: 'Colombia',
+  CD: 'DR Congo', CG: 'Congo', CR: 'Costa Rica', CI: "Côte d'Ivoire",
+  HR: 'Croatia', CU: 'Cuba', CZ: 'Czech Republic', DK: 'Denmark',
+  DO: 'Dominican Republic', EC: 'Ecuador', EG: 'Egypt', SV: 'El Salvador',
+  ET: 'Ethiopia', FI: 'Finland', FR: 'France', DE: 'Germany', GH: 'Ghana',
+  GR: 'Greece', GT: 'Guatemala', HN: 'Honduras', HK: 'Hong Kong', HU: 'Hungary',
+  IN: 'India', ID: 'Indonesia', IR: 'Iran', IQ: 'Iraq', IE: 'Ireland',
+  IL: 'Israel', IT: 'Italy', JM: 'Jamaica', JP: 'Japan', JO: 'Jordan',
+  KZ: 'Kazakhstan', KE: 'Kenya', KP: 'North Korea', KR: 'South Korea',
+  KW: 'Kuwait', LB: 'Lebanon', LY: 'Libya', MG: 'Madagascar', MY: 'Malaysia',
+  MX: 'Mexico', ML: 'Mali', MA: 'Morocco', MZ: 'Mozambique', MM: 'Myanmar',
+  NP: 'Nepal', NL: 'Netherlands', NZ: 'New Zealand', NG: 'Nigeria', NI: 'Nicaragua',
+  NO: 'Norway', PK: 'Pakistan', PA: 'Panama', PY: 'Paraguay', PE: 'Peru',
+  PH: 'Philippines', PL: 'Poland', PT: 'Portugal', QA: 'Qatar', RO: 'Romania',
+  RU: 'Russia', SA: 'Saudi Arabia', SN: 'Senegal', RS: 'Serbia', SG: 'Singapore',
+  ZA: 'South Africa', ES: 'Spain', LK: 'Sri Lanka', SD: 'Sudan', SS: 'South Sudan',
+  SE: 'Sweden', CH: 'Switzerland', SY: 'Syria', TW: 'Taiwan', TZ: 'Tanzania',
+  TH: 'Thailand', TR: 'Turkey', UA: 'Ukraine', AE: 'United Arab Emirates',
+  GB: 'United Kingdom', US: 'United States', UY: 'Uruguay', UZ: 'Uzbekistan',
+  VE: 'Venezuela', VN: 'Vietnam', YE: 'Yemen', ZM: 'Zambia', ZW: 'Zimbabwe',
+  SO: 'Somalia', CF: 'Central African Republic',
+};
+
 function toFlagEmoji(isoCode) {
   if (!isoCode || isoCode.length !== 2) return null;
   const code = isoCode.toUpperCase();
@@ -39,18 +67,40 @@ function toFlagEmoji(isoCode) {
   return String.fromCodePoint(...[...code].map(c => c.charCodeAt(0) + offset));
 }
 
-export default function CountryFlag({ code, size = 'sm' }) {
+/** Returns the friendly full country name for a 2-letter ISO code or stored name. */
+export function getCountryName(code) {
+  if (!code) return code;
+  const upper = code.toUpperCase().trim();
+  // Already a full name stored in the reverse map
+  if (upper.length > 2) {
+    const iso = COUNTRY_TO_ISO[upper];
+    return iso ? (ISO_TO_NAME[iso] ?? code) : code;
+  }
+  return ISO_TO_NAME[upper] ?? code;
+}
+
+export default function CountryFlag({ code, size = 'sm', showName = false }) {
   if (!code) return null;
 
   const upper = code.toUpperCase().trim();
   const iso = COUNTRY_TO_ISO[upper] || (upper.length === 2 ? upper : null);
 
-  if (!iso) return null;
+  if (!iso) return showName ? <span>{getCountryName(code)}</span> : null;
 
   const emoji = toFlagEmoji(iso);
-  if (!emoji) return null;
+  if (!emoji) return showName ? <span>{getCountryName(code)}</span> : null;
 
   const sizeClass = size === 'sm' ? 'text-sm' : size === 'md' ? 'text-lg' : 'text-xl';
+  const name = ISO_TO_NAME[iso.toUpperCase()] ?? code;
 
-  return <span className={sizeClass} title={code}>{emoji}</span>;
+  if (showName) {
+    return (
+      <span className="inline-flex items-center gap-1.5">
+        <span className={sizeClass}>{emoji}</span>
+        <span>{name}</span>
+      </span>
+    );
+  }
+
+  return <span className={sizeClass} title={name}>{emoji}</span>;
 }

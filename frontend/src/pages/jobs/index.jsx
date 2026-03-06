@@ -1,16 +1,17 @@
-﻿import { useState, useEffect } from 'react';
+﻿import { useState, useEffect, useRef } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { toast } from 'sonner';
-import { Loader2, Download, X, Clock, CheckCircle, XCircle, AlertTriangle, RefreshCw, Plus, Boxes } from 'lucide-react';
+import { Loader2, Download, X, Clock, CheckCircle, XCircle, AlertTriangle, RefreshCw, Plus, Boxes, ShieldAlert, ShieldCheck, Trash2, Copy } from 'lucide-react';
 import api from '../../lib/api';
 import { getSocket } from '../../lib/socket';
+import { gsap } from 'gsap';
 
 const STATUS_CFG = {
-  QUEUED:     { label: 'Queued',     icon: Clock,         cls: 'text-blue-600 bg-blue-500/10' },
-  PROCESSING: { label: 'Processing', icon: Loader2,        cls: 'text-amber-600 bg-amber-500/10', spin: true },
-  COMPLETED:  { label: 'Completed',  icon: CheckCircle,    cls: 'text-emerald-600 bg-emerald-500/10' },
-  FAILED:     { label: 'Failed',     icon: XCircle,        cls: 'text-red-600 bg-red-500/10' },
-  CANCELLED:  { label: 'Cancelled',  icon: AlertTriangle,  cls: 'text-zinc-500 bg-zinc-500/10' },
+  QUEUED: { label: 'Queued', icon: Clock, cls: 'text-blue-600 bg-blue-500/10' },
+  PROCESSING: { label: 'Processing', icon: Loader2, cls: 'text-amber-600 bg-amber-500/10', spin: true },
+  COMPLETED: { label: 'Completed', icon: CheckCircle, cls: 'text-emerald-600 bg-emerald-500/10' },
+  FAILED: { label: 'Failed', icon: XCircle, cls: 'text-red-600 bg-red-500/10' },
+  CANCELLED: { label: 'Cancelled', icon: AlertTriangle, cls: 'text-zinc-500 bg-zinc-500/10' },
 };
 
 function StatusBadge({ status }) {
@@ -33,10 +34,10 @@ function ProgressBar({ pct }) {
 }
 
 const SCOPES = [
-  { value: 'all',      label: 'All Containers',  desc: 'Queue every container in the system' },
-  { value: 'CRITICAL', label: 'Critical Risk',    desc: 'Only containers flagged CRITICAL' },
-  { value: 'LOW_RISK', label: 'Low Risk',          desc: 'Only containers flagged LOW_RISK' },
-  { value: 'CLEAR',    label: 'Clear',             desc: 'Only containers with CLEAR status' },
+  { value: 'all', label: 'All Containers', desc: 'Queue every container in the system' },
+  { value: 'CRITICAL', label: 'Critical Risk', desc: 'Only containers flagged CRITICAL' },
+  { value: 'LOW_RISK', label: 'Low Risk', desc: 'Only containers flagged LOW_RISK' },
+  { value: 'CLEAR', label: 'Clear', desc: 'Only containers with CLEAR status' },
 ];
 
 function NewJobDialog({ onClose }) {
@@ -148,15 +149,27 @@ export default function Jobs() {
   const qc = useQueryClient();
   const [selected, setSelected] = useState(null);
   const [showNewJob, setShowNewJob] = useState(false);
+  const [confirmDelete, setConfirmDelete] = useState(null);
+  const drawerRef = useRef(null);
 
   const { data, isLoading, refetch } = useQuery({
     queryKey: ['jobs'],
     queryFn: () => api.get('/jobs').then(r => r.data),
-    refetchInterval: (data) => {
-      const jobs = data?.jobs ?? data?.items ?? data ?? [];
-      const hasActive = jobs.some(j => ['QUEUED', 'PROCESSING'].includes(j.status));
+    refetchInterval: (query) => {
+      // TanStack Query v5: refetchInterval receives the Query object, not raw data
+      const d = query.state.data;
+      const jobs = Array.isArray(d) ? d : (d?.jobs ?? d?.items ?? []);
+      const hasActive = Array.isArray(jobs) && jobs.some(j => ['QUEUED', 'PROCESSING'].includes(j.status));
       return hasActive ? 5000 : false;
     },
+  });
+
+  // Fetch full job detail (includes risk_breakdown) when a job is selected
+  const { data: jobDetail, isLoading: detailLoading } = useQuery({
+    queryKey: ['job-detail', selected?.id],
+    queryFn: () => api.get(`/jobs/${selected.id}`).then(r => r.data?.job ?? r.data),
+    enabled: !!selected?.id,
+    refetchInterval: selected && ['QUEUED', 'PROCESSING'].includes(selected.status) ? 4000 : false,
   });
 
   const cancelMutation = useMutation({
@@ -169,8 +182,32 @@ export default function Jobs() {
     onError: (e) => toast.error(e.response?.data?.message ?? 'Failed to cancel job'),
   });
 
+  const deleteMutation = useMutation({
+    mutationFn: (id) => api.delete(`/jobs/${id}/permanent`),
+    onSuccess: (_, id) => {
+      toast.success('Job deleted — containers and predictions removed');
+      qc.invalidateQueries({ queryKey: ['jobs'] });
+      qc.invalidateQueries({ queryKey: ['analytics'] });
+      qc.invalidateQueries({ queryKey: ['analytics', 'summary'] });
+      qc.invalidateQueries({ queryKey: ['containers'] });
+      if (selected?.id === id) setSelected(null);
+      setConfirmDelete(null);
+    },
+    onError: (e) => toast.error(e.response?.data?.message ?? 'Delete failed'),
+  });
+
+  // ── Animate drawer in when a job is selected ─────────────────────────────
+  useEffect(() => {
+    if (selected && drawerRef.current) {
+      gsap.fromTo(drawerRef.current,
+        { x: 60, opacity: 0 },
+        { x: 0, opacity: 1, duration: 0.3, ease: 'power3.out' }
+      );
+    }
+  }, [selected?.id]);
+
   // ── Real-time job updates via Socket.io ──────────────────────────────────
-  const jobs = data?.jobs ?? data?.items ?? data ?? [];
+  const jobs = Array.isArray(data) ? data : (data?.jobs ?? data?.items ?? []);
   const activeIds = jobs.filter(j => ['QUEUED', 'PROCESSING'].includes(j.status)).map(j => j.id).join(',');
 
   useEffect(() => {
@@ -215,7 +252,7 @@ export default function Jobs() {
       socket.off('job:failed', onFailed);
       ids.forEach(id => socket.emit('unsubscribe:job', { job_id: id }));
     };
-  // eslint-disable-next-line react-hooks/exhaustive-deps
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [activeIds]);
 
   const handleDownload = async (job) => {
@@ -224,7 +261,7 @@ export default function Jobs() {
       const url = URL.createObjectURL(blob);
       const a = document.createElement('a');
       a.href = url;
-      a.download = `${job.job_name ?? job.id}_results.csv`;
+      a.download = `${job.name ?? job.id}_results.csv`;
       a.click();
       URL.revokeObjectURL(url);
     } catch {
@@ -285,7 +322,7 @@ export default function Jobs() {
                 className="hover:bg-muted/30 cursor-pointer transition-colors"
                 onClick={() => setSelected(job)}>
                 <td className="px-4 py-3">
-                  <p className="font-medium text-sm">{job.job_name ?? `Job ${job.id.slice(0, 8)}`}</p>
+                  <p className="font-medium text-sm">{job.name ?? `Job ${job.id.slice(0, 8)}`}</p>
                   <p className="text-xs text-muted-foreground font-mono">{job.id.slice(0, 12)}…</p>
                 </td>
                 <td className="px-4 py-3"><StatusBadge status={job.status} /></td>
@@ -318,6 +355,13 @@ export default function Jobs() {
                         <X className="w-4 h-4" />
                       </button>
                     )}
+                    {['COMPLETED', 'FAILED', 'CANCELLED'].includes(job.status) && (
+                      <button onClick={() => setConfirmDelete(job)}
+                        className="p-1.5 rounded-md hover:bg-red-500/10 hover:text-red-600 transition-colors text-muted-foreground"
+                        title="Delete job">
+                        <Trash2 className="w-4 h-4" />
+                      </button>
+                    )}
                   </div>
                 </td>
               </tr>
@@ -330,55 +374,189 @@ export default function Jobs() {
       {selected && (
         <div className="fixed inset-0 z-40 flex" onClick={() => setSelected(null)}>
           <div className="flex-1 bg-black/30 backdrop-blur-[1px]" />
-          <div className="w-96 bg-card border-l border-border shadow-xl h-full overflow-y-auto animate-slide-in-right"
+          <div ref={drawerRef} className="w-[420px] bg-card border-l border-border shadow-xl h-full overflow-y-auto"
             onClick={e => e.stopPropagation()}>
-            <div className="flex items-start justify-between p-5 border-b border-border">
-              <div>
-                <h2 className="font-semibold">{selected.job_name ?? 'Batch Job'}</h2>
-                <p className="text-xs text-muted-foreground font-mono mt-0.5">{selected.id}</p>
+
+            {/* Drawer header */}
+            <div className="flex items-start justify-between px-5 pt-5 pb-4 border-b border-border">
+              <div className="flex-1 min-w-0 pr-3">
+                <p className="text-xs font-medium text-muted-foreground uppercase tracking-wider mb-1">Batch Job</p>
+                <h2 className="font-semibold text-base leading-tight truncate">{selected.name ?? `Job ${selected.id.slice(0, 8)}`}</h2>
+                <button
+                  onClick={() => { navigator.clipboard.writeText(selected.id); toast.success('ID copied'); }}
+                  className="flex items-center gap-1 mt-1 text-xs text-muted-foreground hover:text-foreground transition-colors group">
+                  <span className="font-mono">{selected.id.slice(0, 16)}…</span>
+                  <Copy className="w-3 h-3 opacity-0 group-hover:opacity-100 transition-opacity" />
+                </button>
               </div>
-              <button onClick={() => setSelected(null)} className="p-1.5 rounded-md hover:bg-muted transition-colors">
+              <button onClick={() => setSelected(null)} className="p-1.5 rounded-md hover:bg-muted transition-colors shrink-0">
                 <X className="w-4 h-4" />
               </button>
             </div>
-            <div className="p-5 space-y-4">
-              <div className="flex items-center gap-2">
-                <span className="text-xs text-muted-foreground w-28">Status</span>
-                <StatusBadge status={selected.status} />
-              </div>
-              {[
-                ['Total Containers', selected.total_containers],
-                ['Processed', selected.processed_count ?? 0],
-                ['Failed', selected.failed_count ?? 0],
-                ['Created', new Date(selected.created_at).toLocaleString()],
-                ['Updated', selected.updated_at ? new Date(selected.updated_at).toLocaleString() : '—'],
-              ].map(([k, v]) => (
-                <div key={k} className="flex items-start gap-2">
-                  <span className="text-xs text-muted-foreground w-28 shrink-0">{k}</span>
-                  <span className="text-sm font-medium">{v}</span>
-                </div>
-              ))}
-              {selected.error_message && (
-                <div className="rounded-md bg-red-500/10 border border-red-500/20 p-3">
-                  <p className="text-xs font-medium text-red-600 mb-1">Error</p>
-                  <p className="text-xs text-red-600/80">{selected.error_message}</p>
+
+            <div className="p-5 space-y-5">
+              {detailLoading && !jobDetail && (
+                <div className="flex items-center gap-2 text-xs text-muted-foreground py-2">
+                  <Loader2 className="w-3.5 h-3.5 animate-spin" /> Loading details…
                 </div>
               )}
+
+              {/* Status + Progress */}
+              <div className="rounded-xl border border-border bg-muted/20 p-4 space-y-3">
+                <div className="flex items-center justify-between">
+                  <StatusBadge status={(jobDetail ?? selected).status} />
+                  <span className="text-sm font-semibold tabular-nums">
+                    {(jobDetail ?? selected).progress_pct ?? (selected.status === 'COMPLETED' ? 100 : 0)}%
+                  </span>
+                </div>
+                <div className="h-2 bg-muted rounded-full overflow-hidden">
+                  <div className="h-full bg-primary rounded-full transition-all duration-500"
+                    style={{ width: `${(jobDetail ?? selected).progress_pct ?? (selected.status === 'COMPLETED' ? 100 : 0)}%` }} />
+                </div>
+                <div className="flex justify-between text-xs text-muted-foreground tabular-nums">
+                  <span>{(jobDetail ?? selected).processed_count ?? 0} processed</span>
+                  <span>{(jobDetail ?? selected).total_containers ?? '?'} total</span>
+                </div>
+              </div>
+
+              {/* Metrics grid */}
+              <div className="grid grid-cols-2 gap-2.5">
+                {[
+                  { label: 'Total', value: (jobDetail ?? selected).total_containers ?? '—', cls: '' },
+                  { label: 'Failed', value: (jobDetail ?? selected).failed_count ?? 0, cls: (jobDetail ?? selected).failed_count > 0 ? 'text-red-600' : '' },
+                ].map(({ label, value, cls }) => (
+                  <div key={label} className="rounded-lg border border-border bg-card p-3">
+                    <p className="text-xs text-muted-foreground mb-1">{label}</p>
+                    <p className={`text-xl font-bold tabular-nums ${cls}`}>{value}</p>
+                  </div>
+                ))}
+              </div>
+
+              {/* Risk Breakdown */}
+              {jobDetail?.risk_breakdown && (
+                <div>
+                  <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-3">Risk Breakdown</p>
+                  <div className="grid grid-cols-3 gap-2">
+                    <div className="rounded-xl border border-red-500/20 bg-red-500/5 p-3 flex flex-col items-center gap-1.5">
+                      <ShieldAlert className="w-4 h-4 text-red-500" />
+                      <span className="text-2xl font-bold text-red-600 tabular-nums leading-none">{jobDetail.risk_breakdown.CRITICAL}</span>
+                      <span className="text-[10px] text-muted-foreground font-medium">Critical</span>
+                    </div>
+                    <div className="rounded-xl border border-amber-500/20 bg-amber-500/5 p-3 flex flex-col items-center gap-1.5">
+                      <AlertTriangle className="w-4 h-4 text-amber-500" />
+                      <span className="text-2xl font-bold text-amber-600 tabular-nums leading-none">{jobDetail.risk_breakdown.LOW_RISK}</span>
+                      <span className="text-[10px] text-muted-foreground font-medium">Low Risk</span>
+                    </div>
+                    <div className="rounded-xl border border-emerald-500/20 bg-emerald-500/5 p-3 flex flex-col items-center gap-1.5">
+                      <ShieldCheck className="w-4 h-4 text-emerald-500" />
+                      <span className="text-2xl font-bold text-emerald-600 tabular-nums leading-none">{jobDetail.risk_breakdown.CLEAR}</span>
+                      <span className="text-[10px] text-muted-foreground font-medium">Clear</span>
+                    </div>
+                  </div>
+                  {(() => {
+                    const total = jobDetail.risk_breakdown.CRITICAL + jobDetail.risk_breakdown.LOW_RISK + jobDetail.risk_breakdown.CLEAR;
+                    if (!total) return null;
+                    return (
+                      <div className="mt-3 h-2 rounded-full overflow-hidden flex bg-muted">
+                        <div className="h-full bg-red-500 transition-all duration-500" style={{ width: `${(jobDetail.risk_breakdown.CRITICAL / total) * 100}%` }} />
+                        <div className="h-full bg-amber-500 transition-all duration-500" style={{ width: `${(jobDetail.risk_breakdown.LOW_RISK / total) * 100}%` }} />
+                        <div className="h-full bg-emerald-500 transition-all duration-500" style={{ width: `${(jobDetail.risk_breakdown.CLEAR / total) * 100}%` }} />
+                      </div>
+                    );
+                  })()}
+                </div>
+              )}
+
+              {/* Timestamps */}
+              <div className="space-y-2">
+                <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">Timeline</p>
+                <div className="space-y-1.5">
+                  {[
+                    ['Created', selected.created_at],
+                    ['Updated', selected.updated_at],
+                    ['Completed', (jobDetail ?? selected).completed_at],
+                  ].filter(([, v]) => !!v).map(([label, val]) => (
+                    <div key={label} className="flex items-center justify-between text-xs">
+                      <span className="text-muted-foreground">{label}</span>
+                      <span className="text-foreground font-medium">{new Date(val).toLocaleString()}</span>
+                    </div>
+                  ))}
+                </div>
+              </div>
+
+              {/* Error message */}
+              {(jobDetail ?? selected).error_message && (
+                <div className="rounded-md bg-red-500/10 border border-red-500/20 p-3">
+                  <p className="text-xs font-medium text-red-600 mb-1">Error</p>
+                  <p className="text-xs text-red-600/80">{(jobDetail ?? selected).error_message}</p>
+                </div>
+              )}
+
+              {/* Actions */}
               <div className="pt-2 flex flex-col gap-2">
-                {selected.status === 'COMPLETED' && (
+                {(jobDetail ?? selected).status === 'COMPLETED' && (
                   <button onClick={() => handleDownload(selected)}
-                    className="w-full flex items-center justify-center gap-2 bg-primary text-primary-foreground rounded-md px-4 py-2 text-sm font-medium hover:opacity-90 transition-opacity">
-                    <Download className="w-4 h-4" /> Download Results
+                    className="w-full flex items-center justify-center gap-2 bg-primary text-primary-foreground rounded-lg px-4 py-2.5 text-sm font-medium hover:bg-primary/90 transition-colors">
+                    <Download className="w-4 h-4" /> Download Results CSV
                   </button>
                 )}
-                {['QUEUED', 'PROCESSING'].includes(selected.status) && (
+                {['QUEUED', 'PROCESSING'].includes((jobDetail ?? selected).status) && (
                   <button onClick={() => cancelMutation.mutate(selected.id)}
                     disabled={cancelMutation.isPending}
-                    className="w-full flex items-center justify-center gap-2 border border-red-400 text-red-600 rounded-md px-4 py-2 text-sm font-medium hover:bg-red-500/10 transition-colors">
-                    <X className="w-4 h-4" /> Cancel Job
+                    className="w-full flex items-center justify-center gap-2 border border-border rounded-lg px-4 py-2.5 text-sm font-medium hover:bg-muted transition-colors">
+                    {cancelMutation.isPending ? <Loader2 className="w-4 h-4 animate-spin" /> : <X className="w-4 h-4" />}
+                    Cancel Job
+                  </button>
+                )}
+                {['COMPLETED', 'FAILED', 'CANCELLED'].includes((jobDetail ?? selected).status) && (
+                  <button onClick={() => setConfirmDelete(jobDetail ?? selected)}
+                    className="w-full flex items-center justify-center gap-2 border border-red-400/40 text-red-600 rounded-lg px-4 py-2.5 text-sm font-medium hover:bg-red-500/10 transition-colors">
+                    <Trash2 className="w-4 h-4" /> Delete Job &amp; Containers
                   </button>
                 )}
               </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Delete confirmation dialog */}
+      {confirmDelete && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm"
+          onClick={() => !deleteMutation.isPending && setConfirmDelete(null)}>
+          <div className="bg-card rounded-xl border border-border shadow-2xl w-full max-w-sm mx-4 p-6 space-y-4"
+            onClick={e => e.stopPropagation()}>
+            <div className="flex items-center gap-3">
+              <div className="w-9 h-9 rounded-full bg-red-500/10 flex items-center justify-center shrink-0">
+                <Trash2 className="w-4 h-4 text-red-600" />
+              </div>
+              <div>
+                <h3 className="font-semibold text-base">Delete batch job?</h3>
+                <p className="text-xs text-muted-foreground mt-0.5 truncate max-w-[220px]">
+                  {confirmDelete.name ?? `Job ${confirmDelete.id?.slice(0, 8)}`}
+                </p>
+              </div>
+            </div>
+            <p className="text-sm text-muted-foreground leading-relaxed">
+              This will permanently delete the job, remove all{' '}
+              <strong className="text-foreground">{(confirmDelete.processed_count ?? 0).toLocaleString()} predictions</strong>,
+              {' '}and <strong className="text-foreground">hard-delete the associated containers</strong> from the system.
+              This cannot be undone.
+            </p>
+            <div className="flex gap-2 pt-1">
+              <button
+                onClick={() => setConfirmDelete(null)}
+                disabled={deleteMutation.isPending}
+                className="flex-1 h-9 rounded-md border border-border text-sm hover:bg-muted transition-colors disabled:opacity-50">
+                Cancel
+              </button>
+              <button
+                onClick={() => deleteMutation.mutate(confirmDelete.id)}
+                disabled={deleteMutation.isPending}
+                className="flex-1 h-9 rounded-md bg-red-600 text-white text-sm font-medium hover:bg-red-700 transition-colors flex items-center justify-center gap-1.5 disabled:opacity-50">
+                {deleteMutation.isPending ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Trash2 className="w-3.5 h-3.5" />}
+                {deleteMutation.isPending ? 'Deleting…' : 'Delete Job'}
+              </button>
             </div>
           </div>
         </div>

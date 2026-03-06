@@ -26,7 +26,16 @@ async function getJobById(jobId, userId) {
     ? Math.round(((job.processed_count + job.failed_count) / job.total_containers) * 1000) / 10
     : 0;
 
-  return { ...job, progress_pct };
+  // Risk breakdown from predictions belonging to this job
+  const breakdown = await prisma.prediction.groupBy({
+    by: ['risk_level'],
+    where: { batch_job_id: jobId },
+    _count: { risk_level: true },
+  });
+  const risk_breakdown = { CRITICAL: 0, LOW_RISK: 0, CLEAR: 0 };
+  breakdown.forEach(b => { risk_breakdown[b.risk_level] = b._count.risk_level; });
+
+  return { ...job, progress_pct, risk_breakdown };
 }
 
 async function cancelJob(jobId, userId) {
@@ -59,6 +68,38 @@ async function cancelJob(jobId, userId) {
   });
 }
 
+async function deleteJob(jobId, userId) {
+  const job = await prisma.batchJob.findFirst({
+    where: { id: jobId, created_by: userId },
+  });
+  if (!job) return null;
+
+  if (['QUEUED', 'PROCESSING'].includes(job.status)) {
+    const err = new Error('Cannot delete an active job — cancel it first.');
+    err.statusCode = 409;
+    err.code = 'CONFLICT';
+    throw err;
+  }
+
+  // Get container IDs whose latest prediction belongs to this batch job
+  const jobPredictions = await prisma.prediction.findMany({
+    where: { batch_job_id: jobId },
+    select: { container_id: true },
+  });
+  const containerIds = jobPredictions.map((p) => p.container_id);
+
+  // Hard-delete containers scored by this job (CASCADE removes their predictions)
+  if (containerIds.length > 0) {
+    await prisma.container.deleteMany({ where: { id: { in: containerIds } } });
+  }
+
+  // Delete the batch job record (remaining predictions with SetNull are already gone via cascade)
+  await prisma.batchJob.delete({ where: { id: jobId } });
+
+  logger.info('Batch job deleted with container cascade', { jobId, userId, containersRemoved: containerIds.length });
+  return { deleted: true, containers_removed: containerIds.length };
+}
+
 async function getJobResults(jobId, userId) {
   const job = await prisma.batchJob.findFirst({
     where: { id: jobId, created_by: userId },
@@ -74,4 +115,4 @@ async function getJobResults(jobId, userId) {
   return { job, predictions };
 }
 
-module.exports = { listJobs, getJobById, cancelJob, getJobResults };
+module.exports = { listJobs, getJobById, cancelJob, deleteJob, getJobResults };

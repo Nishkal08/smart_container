@@ -6,12 +6,14 @@ const logger = require('../../utils/logger');
 /**
  * Predict a single container and persist the result.
  */
-async function predictContainer(containerId) {
+async function predictContainer(containerId, userId, isAdmin) {
   // Resolve container by DB UUID or by container_id string
+  const ownerFilter = (!isAdmin && userId) ? { uploaded_by: userId } : {};
   const container = await prisma.container.findFirst({
     where: {
       OR: [{ id: containerId }, { container_id: containerId }],
       deleted_at: null,
+      ...ownerFilter,
     },
   });
 
@@ -50,8 +52,8 @@ async function predictContainer(containerId) {
       feature_contributions: mlResult.feature_contributions || [],
       weight_discrepancy_pct: mlResult.weight_discrepancy_pct ?? null,
       value_per_kg: mlResult.value_per_kg ?? null,
-      model_version: mlResult.model_version || 'mock-v1.0',
-      is_mock: mlResult.is_mock ?? true,
+      model_version: mlResult.model_version || 'xgb-v2.0',
+      is_mock: mlResult.is_mock ?? false,
     },
   });
 
@@ -62,15 +64,18 @@ async function predictContainer(containerId) {
  * Queue a batch prediction job.
  * Returns the created batch_job record.
  */
-async function queueBatchPrediction({ container_ids, job_name, createdBy }) {
-  // Validate that requested container IDs exist
+async function queueBatchPrediction({ container_ids, job_name, createdBy, isAdmin }) {
+  // Validate that requested container IDs exist (non-admin: only own containers + shared)
+  const ownerCond = (!isAdmin && createdBy)
+    ? [{ OR: [{ uploaded_by: createdBy }, { uploaded_by: null }] }]
+    : [];
   const containers = await prisma.container.findMany({
     where: {
-      OR: [
-        { id: { in: container_ids } },
-        { container_id: { in: container_ids } },
+      AND: [
+        { OR: [{ id: { in: container_ids } }, { container_id: { in: container_ids } }] },
+        { deleted_at: null },
+        ...ownerCond,
       ],
-      deleted_at: null,
     },
     select: { id: true, container_id: true },
   });
@@ -111,7 +116,7 @@ async function queueBatchPrediction({ container_ids, job_name, createdBy }) {
   return batchJob;
 }
 
-async function listPredictions({ page, limit, risk_level, date_from, date_to, is_mock, search }) {
+async function listPredictions({ page, limit, risk_level, date_from, date_to, is_mock, search, userId, isAdmin }) {
   const skip = (page - 1) * limit;
   const where = {};
 
@@ -122,14 +127,25 @@ async function listPredictions({ page, limit, risk_level, date_from, date_to, is
     if (date_from) where.created_at.gte = new Date(date_from);
     if (date_to) where.created_at.lte = new Date(date_to + 'T23:59:59Z');
   }
+
+  const containerConditions = [];
+  if (!isAdmin && userId) {
+    // Show predictions for containers owned by this user OR with no owner (legacy/shared)
+    containerConditions.push({ OR: [{ uploaded_by: userId }, { uploaded_by: null }] });
+  }
   if (search) {
-    where.container = {
+    containerConditions.push({
       OR: [
         { container_id: { contains: search, mode: 'insensitive' } },
         { importer_id: { contains: search, mode: 'insensitive' } },
         { exporter_id: { contains: search, mode: 'insensitive' } },
       ],
-    };
+    });
+  }
+  if (containerConditions.length > 0) {
+    where.container = containerConditions.length === 1
+      ? containerConditions[0]
+      : { AND: containerConditions };
   }
 
   const [predictions, total] = await Promise.all([
@@ -159,11 +175,17 @@ async function listPredictions({ page, limit, risk_level, date_from, date_to, is
   };
 }
 
-async function getPredictionByContainerId(containerId) {
+async function getPredictionByContainerId(containerId, userId, isAdmin) {
+  const ownerCond = (!isAdmin && userId)
+    ? [{ OR: [{ uploaded_by: userId }, { uploaded_by: null }] }]
+    : [];
   return prisma.prediction.findFirst({
     where: {
       container: {
-        OR: [{ id: containerId }, { container_id: containerId }],
+        AND: [
+          { OR: [{ id: containerId }, { container_id: containerId }] },
+          ...ownerCond,
+        ],
       },
     },
     orderBy: { created_at: 'desc' },
@@ -173,7 +195,7 @@ async function getPredictionByContainerId(containerId) {
   });
 }
 
-async function getAllPredictionsForExport({ risk_level, date_from, date_to }) {
+async function getAllPredictionsForExport({ risk_level, date_from, date_to, userId, isAdmin }) {
   const where = {};
   if (risk_level) where.risk_level = risk_level;
   if (date_from || date_to) {
@@ -181,6 +203,7 @@ async function getAllPredictionsForExport({ risk_level, date_from, date_to }) {
     if (date_from) where.created_at.gte = new Date(date_from);
     if (date_to) where.created_at.lte = new Date(date_to + 'T23:59:59Z');
   }
+  if (!isAdmin && userId) where.container = { OR: [{ uploaded_by: userId }, { uploaded_by: null }] };
   return prisma.prediction.findMany({
     where,
     orderBy: { created_at: 'desc' },
@@ -188,12 +211,14 @@ async function getAllPredictionsForExport({ risk_level, date_from, date_to }) {
   });
 }
 
-async function reScoreContainer(containerId) {
+async function reScoreContainer(containerId, userId, isAdmin) {
   // Resolve container
+  const ownerCond = (!isAdmin && userId)
+    ? [{ OR: [{ uploaded_by: userId }, { uploaded_by: null }] }]
+    : [];
   const container = await prisma.container.findFirst({
     where: {
-      OR: [{ id: containerId }, { container_id: containerId }],
-      deleted_at: null,
+      AND: [{ OR: [{ id: containerId }, { container_id: containerId }] }, { deleted_at: null }, ...ownerCond],
     },
   });
 
@@ -232,8 +257,8 @@ async function reScoreContainer(containerId) {
       feature_contributions: mlResult.feature_contributions || [],
       weight_discrepancy_pct: mlResult.weight_discrepancy_pct ?? null,
       value_per_kg: mlResult.value_per_kg ?? null,
-      model_version: mlResult.model_version || 'mock-v1.0',
-      is_mock: mlResult.is_mock ?? true,
+      model_version: mlResult.model_version || 'xgb-v2.0',
+      is_mock: mlResult.is_mock ?? false,
     },
     create: {
       container_id: container.id,
@@ -244,17 +269,41 @@ async function reScoreContainer(containerId) {
       feature_contributions: mlResult.feature_contributions || [],
       weight_discrepancy_pct: mlResult.weight_discrepancy_pct ?? null,
       value_per_kg: mlResult.value_per_kg ?? null,
-      model_version: mlResult.model_version || 'mock-v1.0',
-      is_mock: mlResult.is_mock ?? true,
+      model_version: mlResult.model_version || 'xgb-v2.0',
+      is_mock: mlResult.is_mock ?? false,
     },
   });
 
   return { ...prediction, container };
 }
 
+/**
+ * Predict risk from raw container data — no DB lookup, no persistence.
+ * Used for ad-hoc "what-if" scoring directly from user-supplied fields.
+ */
+async function predictRaw(data) {
+  const mlResult = await predictSingle({
+    container_id: data.container_id,
+    declared_weight: data.declared_weight,
+    measured_weight: data.measured_weight,
+    declared_value: data.declared_value,
+    dwell_time_hours: data.dwell_time_hours,
+    origin_country: data.origin_country,
+    hs_code: data.hs_code,
+    trade_regime: data.trade_regime || 'Import',
+    importer_id: data.importer_id || '',
+    exporter_id: data.exporter_id || '',
+    shipping_line: data.shipping_line || '',
+    destination_port: data.destination_port || '',
+    destination_country: data.destination_country || '',
+  });
+  return mlResult;
+}
+
 module.exports = {
   predictContainer,
   reScoreContainer,
+  predictRaw,
   queueBatchPrediction,
   listPredictions,
   getPredictionByContainerId,

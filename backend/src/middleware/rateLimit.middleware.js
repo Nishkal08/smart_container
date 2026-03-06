@@ -1,64 +1,15 @@
-const rateLimit = require('express-rate-limit');
-const { RedisStore } = require('rate-limit-redis');
-const { getRedisClient } = require('../config/redis');
-const envConfig = require('../config/env');
-
 /**
- * General API rate limiter.
- * Uses Redis store so it works correctly across multiple Node.js instances.
+ * Rate limiting is DISABLED for development / demo purposes.
+ * All limiter functions return a pass-through middleware (next() immediately).
+ *
+ * To re-enable in production, restore the express-rate-limit + RedisStore config
+ * and set appropriate env vars (RATE_LIMIT_MAX, etc.).
  */
-function createGeneralLimiter() {
-  return rateLimit({
-    windowMs: envConfig.RATE_LIMIT_WINDOW_MS,
-    max: envConfig.RATE_LIMIT_MAX,
-    standardHeaders: true,
-    legacyHeaders: false,
-    store: new RedisStore({
-      sendCommand: (...args) => getRedisClient().call(...args),
-    }),
-    message: {
-      success: false,
-      error: { code: 'RATE_LIMITED', message: 'Too many requests. Please try again later.' },
-    },
-  });
-}
 
-/**
- * Auth-specific rate limiter (stricter).
- */
-function createAuthLimiter() {
-  return rateLimit({
-    windowMs: envConfig.RATE_LIMIT_WINDOW_MS,
-    max: envConfig.AUTH_RATE_LIMIT_MAX,
-    standardHeaders: true,
-    legacyHeaders: false,
-    store: new RedisStore({
-      sendCommand: (...args) => getRedisClient().call(...args),
-    }),
-    message: {
-      success: false,
-      error: { code: 'RATE_LIMITED', message: 'Too many authentication attempts. Please wait 15 minutes.' },
-    },
-  });
-}
+const passThrough = (_req, _res, next) => next();
 
-/**
- * Upload rate limiter: 5 uploads per hour per user/IP.
- */
-function createUploadLimiter() {
-  return rateLimit({
-    windowMs: 60 * 60 * 1000, // 1 hour
-    max: 5,
-    standardHeaders: true,
-    legacyHeaders: false,
-    store: new RedisStore({
-      sendCommand: (...args) => getRedisClient().call(...args),
-    }),
-    message: {
-      success: false,
-      error: { code: 'RATE_LIMITED', message: 'Upload limit reached. Maximum 5 uploads per hour.' },
-    },
-  });
-}
+function createGeneralLimiter() { return passThrough; }
+function createAuthLimiter() { return passThrough; }
+function createUploadLimiter() { return passThrough; }
 
 module.exports = { createGeneralLimiter, createAuthLimiter, createUploadLimiter };

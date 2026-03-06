@@ -19,4 +19,20 @@ const listPredictionsQuerySchema = z.object({
   search: z.string().optional(),
 });
 
-module.exports = { singlePredictSchema, batchPredictSchema, listPredictionsQuerySchema };
+const rawPredictSchema = z.object({
+  container_id: z.string().min(1, 'container_id is required'),
+  declared_weight: z.number().nonnegative('declared_weight must be >= 0'),
+  measured_weight: z.number().nonnegative('measured_weight must be >= 0'),
+  declared_value: z.number().nonnegative('declared_value must be >= 0'),
+  dwell_time_hours: z.number().nonnegative('dwell_time_hours must be >= 0'),
+  origin_country: z.string().min(1, 'origin_country is required'),
+  hs_code: z.string().min(1, 'hs_code is required'),
+  destination_port: z.string().optional().default(''),
+  destination_country: z.string().optional().default(''),
+  trade_regime: z.string().optional().default('Import'),
+  importer_id: z.string().optional().default(''),
+  exporter_id: z.string().optional().default(''),
+  shipping_line: z.string().optional().default(''),
+});
+
+module.exports = { singlePredictSchema, batchPredictSchema, listPredictionsQuerySchema, rawPredictSchema };

@@ -10,6 +10,7 @@ import MainLayout from './components/layout/MainLayout';
 import Login from './pages/auth/Login';
 import Register from './pages/auth/Register';
 import ForgotPassword from './pages/auth/ForgotPassword';
+import ResetPassword from './pages/auth/ResetPassword';
 import Dashboard from './pages/dashboard';
 import Containers from './pages/containers';
 import Insights from './pages/insights';
@@ -44,6 +45,7 @@ function App() {
         <Route path="/login" element={<Login />} />
         <Route path="/register" element={<Register />} />
         <Route path="/forgot-password" element={<ForgotPassword />} />
+        <Route path="/reset-password" element={<ResetPassword />} />
         <Route
           path="/"
           element={

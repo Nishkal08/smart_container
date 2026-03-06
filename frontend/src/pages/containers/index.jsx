@@ -3,9 +3,10 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { toast } from 'sonner';
 import { Search, Filter, X, Loader2, RefreshCw, Trash2, Zap, ChevronLeft, ChevronRight, ExternalLink } from 'lucide-react';
 import { Link } from 'react-router-dom';
+import { motion, AnimatePresence } from 'framer-motion';
 import api from '../../lib/api';
 import RiskBadge from '../../components/ui/RiskBadge';
-import CountryFlag from '../../components/ui/CountryFlag';
+import CountryFlag, { getCountryName } from '../../components/ui/CountryFlag';
 import { useAuthStore } from '../../store/authStore';
 
 const RISK_LEVELS = ['ALL', 'CLEAR', 'LOW_RISK', 'CRITICAL'];
@@ -26,18 +27,31 @@ export default function Containers() {
   const [page, setPage] = useState(1);
   const [search, setSearch] = useState('');
   const [riskFilter, setRiskFilter] = useState('ALL');
+  const [batchFilter, setBatchFilter] = useState('');
   const [selected, setSelected] = useState(null);
   const [rescoring, setRescoring] = useState(null);
+  const [sortBy, setSortBy] = useState('risk_score');
+  const [sortDir, setSortDir] = useState('desc');
+
+  const { data: jobsList } = useQuery({
+    queryKey: ['jobs-list'],
+    queryFn: () => api.get('/jobs').then(r => r.data?.jobs ?? r.data ?? []),
+    staleTime: 30_000,
+  });
 
   const { data, isLoading, isFetching } = useQuery({
-    queryKey: ['containers', page, riskFilter, search],
+    queryKey: ['containers', page, riskFilter, search, batchFilter],
     queryFn: () => {
       const params = new URLSearchParams({ page, limit: 20 });
       if (riskFilter !== 'ALL') params.set('risk_level', riskFilter);
       if (search.trim()) params.set('search', search.trim());
+      if (batchFilter) params.set('batch_job_id', batchFilter);
+      params.set('sort_by', sortBy);
+      params.set('sort_order', sortDir);
       return api.get(`/containers?${params}`).then(r => r.data);
     },
     placeholderData: (previousData) => previousData,
+    refetchInterval: 15_000,
   });
 
   const deleteMutation = useMutation({
@@ -56,6 +70,8 @@ export default function Containers() {
       await api.post(`/predictions/re-score/${containerId}`);
       toast.success('Re-scored successfully');
       qc.invalidateQueries({ queryKey: ['containers'] });
+      qc.invalidateQueries({ queryKey: ['analytics'] });
+      qc.invalidateQueries({ queryKey: ['predictions'] });
       if (selected?.id === containerId || selected?.container_id === containerId) {
         setSelected(null);
       }
@@ -70,7 +86,15 @@ export default function Containers() {
   const total = data?.pagination?.total ?? data?.total ?? 0;
   const totalPages = data?.pagination?.totalPages ?? (Math.ceil(total / 20) || 1);
 
-  const filtered = rows;
+  // Client-side sort fallback (CRITICAL first by default)
+  const RISK_ORDER = { CRITICAL: 0, LOW_RISK: 1, CLEAR: 2 };
+  const sorted = [...rows].sort((a, b) => {
+    const aScore = a.latest_prediction?.risk_score ?? -1;
+    const bScore = b.latest_prediction?.risk_score ?? -1;
+    return bScore - aScore;
+  });
+
+  const filtered = sorted;
 
   return (
     <div className="space-y-5 animate-fade-in">
@@ -88,15 +112,33 @@ export default function Containers() {
         <div className="flex items-center gap-1">
           {RISK_LEVELS.map(l => (
             <button key={l} onClick={() => { setRiskFilter(l); setPage(1); }}
-              className={`text-xs px-3 py-1.5 rounded-md font-medium transition-colors border ${
-                riskFilter === l
-                  ? 'bg-primary text-primary-foreground border-primary'
-                  : 'border-border text-muted-foreground hover:text-foreground hover:border-muted-foreground'
-              }`}>
+              className={`text-xs px-3 py-1.5 rounded-md font-medium transition-colors border ${riskFilter === l
+                ? 'bg-primary text-primary-foreground border-primary'
+                : 'border-border text-muted-foreground hover:text-foreground hover:border-muted-foreground'
+                }`}>
               {l.replace('_', ' ')}
             </button>
           ))}
         </div>
+        {/* Batch job filter */}
+        <select
+          value={batchFilter}
+          onChange={e => { setBatchFilter(e.target.value); setPage(1); }}
+          className="text-xs px-2 py-1.5 rounded-md border border-border bg-card text-foreground focus:outline-none focus:ring-1 focus:ring-ring min-w-[160px]"
+        >
+          <option value="">All Batch Jobs</option>
+          {(jobsList ?? []).map(j => (
+            <option key={j.id} value={j.id}>
+              {j.name ?? `Job ${j.id.slice(0, 8)}`} &mdash; {new Date(j.created_at).toLocaleDateString()}
+            </option>
+          ))}
+        </select>
+        {batchFilter && (
+          <button onClick={() => { setBatchFilter(''); setPage(1); }}
+            className="flex items-center gap-1 text-xs text-muted-foreground hover:text-foreground transition-colors">
+            <X className="w-3 h-3" /> Clear batch
+          </button>
+        )}
         <div className="ml-auto flex items-center gap-2 text-xs text-muted-foreground">
           {isFetching && <Loader2 className="w-3 h-3 animate-spin" />}
           {total.toLocaleString()} total
@@ -108,7 +150,7 @@ export default function Containers() {
         <table className="w-full text-sm">
           <thead>
             <tr className="border-b border-border bg-muted/30">
-              {['Container ID', 'Origin', 'Shipper', 'HS Code', 'Weight (kg)', 'Value (USD)', 'Risk'].map(h => (
+              {['Container ID', 'Origin Country', 'Declared Value', 'Weight Diff', 'Dwell Time', 'Risk'].map(h => (
                 <th key={h} className="text-left px-4 py-3 text-xs font-medium text-muted-foreground">{h}</th>
               ))}
             </tr>
@@ -116,36 +158,80 @@ export default function Containers() {
           <tbody className="divide-y divide-border">
             {isLoading ? (
               Array(8).fill(0).map((_, i) => (
-                <tr key={i}>{Array(7).fill(0).map((__, j) => (
+                <tr key={i}>{Array(6).fill(0).map((__, j) => (
                   <td key={j} className="px-4 py-3"><div className="h-4 bg-muted rounded animate-pulse" /></td>
                 ))}</tr>
               ))
             ) : filtered.length === 0 ? (
-              <tr><td colSpan={7} className="text-center text-muted-foreground text-sm py-16">No containers found.</td></tr>
-            ) : filtered.map((c) => (
+              <tr>
+                <td colSpan={6} className="py-20 text-center">
+                  <div className="flex flex-col items-center gap-3">
+                    <div className="w-14 h-14 rounded-2xl bg-muted flex items-center justify-center">
+                      <Filter className="w-6 h-6 text-muted-foreground" />
+                    </div>
+                    {search || riskFilter !== 'ALL' ? (
+                      <>
+                        <p className="font-semibold text-sm">No containers match your filters</p>
+                        <button onClick={() => { setSearch(''); setRiskFilter('ALL'); setPage(1); }}
+                          className="text-xs text-primary hover:underline font-medium">Clear filters</button>
+                      </>
+                    ) : (
+                      <>
+                        <p className="font-semibold text-sm">No containers yet</p>
+                        <p className="text-xs text-muted-foreground max-w-xs">Upload a CSV file to import container data and start risk scoring.</p>
+                        <Link to="/upload" className="mt-1 bg-primary text-primary-foreground text-xs font-semibold px-4 py-2 rounded-lg shadow shadow-primary/20 transition-all hover:bg-primary/90 flex items-center gap-1.5">
+                          <ExternalLink className="w-3.5 h-3.5" /> Upload CSV
+                        </Link>
+                      </>
+                    )}
+                  </div>
+                </td>
+              </tr>
+            ) : filtered.map((c) => {
+              const weightDiff = c.declared_weight && c.measured_weight
+                ? ((c.measured_weight - c.declared_weight) / c.declared_weight * 100)
+                : null;
+              return (
               <tr key={c.id}
-                className="hover:bg-muted/30 cursor-pointer transition-colors"
+                className={`hover:bg-muted/30 cursor-pointer transition-colors ${
+                  c.latest_prediction?.risk_level === 'CRITICAL' ? 'bg-red-500/5' : ''
+                }`}
                 onClick={() => setSelected(c)}>
                 <td className="px-4 py-3">
                   <span className="font-mono text-xs font-medium">{c.container_id}</span>
                 </td>
-                <td className="px-4 py-3 text-muted-foreground">
-                  <span className="flex items-center gap-1.5">
+                <td className="px-4 py-3">
+                  <span className="flex items-center gap-1.5 text-sm">
                     <CountryFlag code={c.origin_country} size="sm" />
-                    {c.origin_country}
+                    <span className="truncate max-w-[120px]">{getCountryName(c.origin_country)}</span>
                   </span>
                 </td>
-                <td className="px-4 py-3 max-w-[140px] truncate">{c.shipper_id}</td>
-                <td className="px-4 py-3 font-mono text-xs">{c.hs_code}</td>
-                <td className="px-4 py-3 tabular-nums">{c.weight_kg?.toLocaleString()}</td>
-                <td className="px-4 py-3 tabular-nums">${c.declared_value_usd?.toLocaleString()}</td>
+                <td className="px-4 py-3 tabular-nums text-sm">${c.declared_value?.toLocaleString() ?? '—'}</td>
+                <td className="px-4 py-3 tabular-nums">
+                  {weightDiff !== null ? (
+                    <span className={`text-sm font-semibold ${
+                      Math.abs(weightDiff) > 15 ? 'text-red-600' :
+                      Math.abs(weightDiff) > 5 ? 'text-amber-600' : 'text-emerald-600'
+                    }`}>
+                      {weightDiff > 0 ? '+' : ''}{weightDiff.toFixed(1)}%
+                    </span>
+                  ) : <span className="text-xs text-muted-foreground">—</span>}
+                </td>
+                <td className="px-4 py-3 tabular-nums text-sm">
+                  {c.dwell_time_hours != null ? (
+                    <span className={c.dwell_time_hours > 72 ? 'text-amber-600 font-medium' : ''}>
+                      {c.dwell_time_hours.toFixed(0)}h
+                    </span>
+                  ) : '—'}
+                </td>
                 <td className="px-4 py-3">
                   {c.latest_prediction
                     ? <RiskBadge level={c.latest_prediction.risk_level} score={c.latest_prediction.risk_score} showScore />
                     : <span className="text-xs text-muted-foreground">Unscored</span>}
                 </td>
               </tr>
-            ))}
+              );
+            })}
           </tbody>
         </table>
 
@@ -170,11 +256,27 @@ export default function Containers() {
       </div>
 
       {/* Detail drawer */}
-      {selected && (
-        <div className="fixed inset-0 z-40 flex" onClick={() => setSelected(null)}>
-          <div className="flex-1 bg-black/30 backdrop-blur-[1px]" />
-          <div className="w-[440px] bg-card border-l border-border shadow-xl h-full overflow-y-auto animate-slide-in-right"
-            onClick={e => e.stopPropagation()}>
+      <AnimatePresence>
+        {selected && (
+          <motion.div
+            key="drawer-overlay"
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            transition={{ duration: 0.2 }}
+            className="fixed inset-0 z-40 flex"
+            onClick={() => setSelected(null)}
+          >
+            <div className="flex-1 bg-black/30 backdrop-blur-[2px]" />
+            <motion.div
+              key="drawer-panel"
+              initial={{ x: '100%' }}
+              animate={{ x: 0 }}
+              exit={{ x: '100%' }}
+              transition={{ type: 'spring', stiffness: 320, damping: 32, mass: 0.8 }}
+              className="w-[440px] bg-card border-l border-border shadow-2xl h-full overflow-y-auto"
+              onClick={e => e.stopPropagation()}
+            >
             {/* Drawer header */}
             <div className="flex items-start justify-between p-5 border-b border-border sticky top-0 bg-card z-10">
               <div>
@@ -212,18 +314,19 @@ export default function Containers() {
                 <div className="space-y-2.5">
                   {[
                     ['Container ID', selected.container_id],
-                    ['Origin Country', selected.origin_country],
-                    ['Destination', selected.destination_country],
+                    ['Origin Country', getCountryName(selected.origin_country)],
+                    ['Destination', getCountryName(selected.destination_country)],
+                    ['Destination Port', selected.destination_port],
                     ['HS Code', selected.hs_code],
-                    ['Goods Description', selected.goods_description],
-                    ['Shipper ID', selected.shipper_id],
-                    ['Consignee ID', selected.consignee_id],
-                    ['Weight (kg)', selected.weight_kg?.toLocaleString()],
-                    ['Declared Value (USD)', selected.declared_value_usd ? `$${selected.declared_value_usd.toLocaleString()}` : null],
-                    ['Quantity', selected.quantity?.toLocaleString()],
-                    ['Shipment Date', selected.shipment_date ? new Date(selected.shipment_date).toLocaleDateString() : null],
-                    ['Port of Entry', selected.port_of_entry],
-                    ['Transport Mode', selected.transport_mode],
+                    ['Trade Regime', selected.trade_regime],
+                    ['Importer ID', selected.importer_id],
+                    ['Exporter ID', selected.exporter_id],
+                    ['Shipping Line', selected.shipping_line],
+                    ['Declared Weight (kg)', selected.declared_weight?.toLocaleString()],
+                    ['Measured Weight (kg)', selected.measured_weight?.toLocaleString()],
+                    ['Declared Value (USD)', selected.declared_value ? `$${selected.declared_value.toLocaleString()}` : null],
+                    ['Dwell Time', selected.dwell_time_hours ? `${selected.dwell_time_hours}h` : null],
+                    ['Declaration Date', selected.declaration_date],
                   ].map(([l, v]) => <DetailRow key={l} label={l} value={v} />)}
                 </div>
               </div>
@@ -256,9 +359,10 @@ export default function Containers() {
                 )}
               </div>
             </div>
-          </div>
-        </div>
-      )}
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
     </div>
   );
 }

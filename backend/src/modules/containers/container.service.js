@@ -1,7 +1,7 @@
 const prisma = require('../../config/db');
 const logger = require('../../utils/logger');
 
-async function listContainers({ page, limit, origin_country, risk_level, trade_regime, date_from, date_to, search }) {
+async function listContainers({ page, limit, origin_country, risk_level, trade_regime, date_from, date_to, search, batch_job_id, userId, isAdmin }) {
   const skip = (page - 1) * limit;
 
   // Build dynamic where clause
@@ -16,19 +16,29 @@ async function listContainers({ page, limit, origin_country, risk_level, trade_r
     if (date_to) where.declaration_date.lte = date_to;
   }
 
-  if (search) {
-    where.OR = [
-      { container_id: { contains: search, mode: 'insensitive' } },
-      { importer_id: { contains: search, mode: 'insensitive' } },
-      { exporter_id: { contains: search, mode: 'insensitive' } },
-    ];
+  // Build AND conditions for ownership + search (both use OR internally, so must be combined via AND)
+  const andConditions = [];
+  if (!isAdmin && userId) {
+    // Show containers owned by this user OR containers with no owner (legacy/shared data)
+    andConditions.push({ OR: [{ uploaded_by: userId }, { uploaded_by: null }] });
   }
+  if (search) {
+    andConditions.push({
+      OR: [
+        { container_id: { contains: search, mode: 'insensitive' } },
+        { importer_id: { contains: search, mode: 'insensitive' } },
+        { exporter_id: { contains: search, mode: 'insensitive' } },
+      ],
+    });
+  }
+  if (andConditions.length > 0) where.AND = andConditions;
 
-  // Filter by risk_level requires a join on predictions
-  if (risk_level) {
-    where.predictions = {
-      some: { risk_level },
-    };
+  // Filter by risk_level / batch_job_id requires a join on predictions
+  const predFilter = {};
+  if (risk_level) predFilter.risk_level = risk_level;
+  if (batch_job_id) predFilter.batch_job_id = batch_job_id;
+  if (Object.keys(predFilter).length > 0) {
+    where.predictions = { some: predFilter };
   }
 
   const [containers, total] = await Promise.all([
@@ -72,9 +82,12 @@ async function listContainers({ page, limit, origin_country, risk_level, trade_r
   };
 }
 
-async function getContainerById(id) {
+async function getContainerById(id, userId, isAdmin) {
+  const ownerCond = (!isAdmin && userId)
+    ? [{ OR: [{ uploaded_by: userId }, { uploaded_by: null }] }]
+    : [];
   const container = await prisma.container.findFirst({
-    where: { OR: [{ id }, { container_id: id }] },
+    where: { AND: [{ OR: [{ id }, { container_id: id }] }, ...ownerCond] },
     include: {
       predictions: {
         orderBy: { created_at: 'desc' },
@@ -145,10 +158,13 @@ async function bulkUpsertContainers(containers, uploadedById) {
   return { created, updated, errors };
 }
 
-async function updateContainer(id, data) {
+async function updateContainer(id, data, userId, isAdmin) {
   // Allow lookup by DB UUID or container_id string
+  const ownerCond = (!isAdmin && userId)
+    ? [{ OR: [{ uploaded_by: userId }, { uploaded_by: null }] }]
+    : [];
   const existing = await prisma.container.findFirst({
-    where: { OR: [{ id }, { container_id: id }], deleted_at: null },
+    where: { AND: [{ OR: [{ id }, { container_id: id }] }, { deleted_at: null }, ...ownerCond] },
   });
   if (!existing) return null;
 

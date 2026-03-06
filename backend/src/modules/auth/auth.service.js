@@ -144,4 +144,48 @@ async function changePassword(userId, { current_password, new_password }) {
   await prisma.user.update({ where: { id: userId }, data: { password_hash } });
 }
 
-module.exports = { register, login, refresh, logout, changePassword };
+async function forgotPassword({ email }) {
+  const crypto = require('crypto');
+  const redis = getRedisClient();
+
+  // Generic message prevents email enumeration
+  const message = 'If that email is registered, you will receive a password reset link shortly.';
+
+  const user = await prisma.user.findUnique({ where: { email } });
+  if (!user || !user.is_active) return { message };
+
+  // Generate cryptographically secure token
+  const token = crypto.randomBytes(32).toString('hex');
+  await redis.set(`pwd_reset:${token}`, user.id, 'EX', 3600); // expires in 1 hour
+
+  const frontendUrl = process.env.FRONTEND_URL ?? 'http://localhost:5173';
+  const resetUrl = `${frontendUrl}/reset-password?token=${token}`;
+
+  logger.info('Password reset token generated', { userId: user.id });
+
+  // In production: send resetUrl via email (SMTP not configured)
+  // In development: return the URL in the response so it can be used directly
+  const isDev = process.env.NODE_ENV !== 'production';
+  return { message, ...(isDev ? { reset_url: resetUrl, dev_note: 'In production this URL is sent via email.' } : {}) };
+}
+
+async function resetPassword({ token, password }) {
+  const redis = getRedisClient();
+
+  const userId = await redis.get(`pwd_reset:${token}`);
+  if (!userId) {
+    const err = new Error('Invalid or expired reset token');
+    err.statusCode = 400;
+    err.code = 'BAD_REQUEST';
+    throw err;
+  }
+
+  const password_hash = await bcrypt.hash(password, BCRYPT_ROUNDS);
+  await prisma.user.update({ where: { id: userId }, data: { password_hash } });
+  await redis.del(`pwd_reset:${token}`);
+
+  logger.info('Password reset successfully', { userId });
+  return { message: 'Password has been reset. You can now sign in with your new password.' };
+}
+
+module.exports = { register, login, refresh, logout, changePassword, forgotPassword, resetPassword };

@@ -31,4 +31,10 @@ async function getJobResults(req, res) {
   return res.send(csv);
 }
 
-module.exports = { listJobs, getJob, cancelJob, getJobResults };
+async function deleteJob(req, res) {
+  const result = await jobService.deleteJob(req.params.id, req.user.userId);
+  if (!result) return notFound(res, 'Batch job');
+  return success(res, result);
+}
+
+module.exports = { listJobs, getJob, cancelJob, getJobResults, deleteJob };

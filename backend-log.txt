@@ -1,0 +1,111 @@
+
+> smart-container-backend@1.0.0 dev
+> nodemon src/app.js
+
+[33m[nodemon] 3.1.14[39m
+[33m[nodemon] to restart at any time, enter `rs`[39m
+[33m[nodemon] watching path(s): *.*[39m
+[33m[nodemon] watching extensions: js,mjs,cjs,json[39m
+[32m[nodemon] starting `node src/app.js`[39m
+22:09:13 [[32minfo[39m]: Redis client connected
+22:09:13 [[32minfo[39m]: Redis connected
+22:09:13 [[32minfo[39m]: Prediction worker initialized {"queue":"prediction_queue","concurrency":10}
+22:09:13 [[32minfo[39m]: BullMQ prediction worker started
+22:09:13 [[32minfo[39m]: SmartContainer API running on port 3000 [development]
+22:09:13 [[32minfo[39m]: Redis client connected
+22:10:58 [[31merror[39m]: Error: Invalid email or password
+    at Object.login (C:\smart_container\backend\src\modules\auth\auth.service.js:67:17)
+    at async login (C:\smart_container\backend\src\modules\auth\auth.controller.js:10:18) {"url":"/api/v1/auth/login","method":"POST"}
+22:11:12 [[32minfo[39m]: User logged in {"userId":"05a369ec-829d-4f4e-805d-b8e534404a24","email":"admin@smartcontainer.dev"}
+22:12:30 [[32minfo[39m]: User logged in {"userId":"05a369ec-829d-4f4e-805d-b8e534404a24","email":"admin@smartcontainer.dev"}
+22:12:37 [[32minfo[39m]: User logged in {"userId":"05a369ec-829d-4f4e-805d-b8e534404a24","email":"admin@smartcontainer.dev"}
+22:12:37 [[32minfo[39m]: Redis client connected
+22:12:43 [[32minfo[39m]: User logged in {"userId":"05a369ec-829d-4f4e-805d-b8e534404a24","email":"admin@smartcontainer.dev"}
+22:15:27 [[32minfo[39m]: User logged in {"userId":"05a369ec-829d-4f4e-805d-b8e534404a24","email":"admin@smartcontainer.dev"}
+22:15:31 [[31merror[39m]: Error: Invalid email or password
+    at Object.login (C:\smart_container\backend\src\modules\auth\auth.service.js:67:17)
+    at async login (C:\smart_container\backend\src\modules\auth\auth.controller.js:10:18) {"url":"/api/v1/auth/login","method":"POST"}
+22:15:34 [[32minfo[39m]: User logged in {"userId":"05a369ec-829d-4f4e-805d-b8e534404a24","email":"admin@smartcontainer.dev"}
+22:16:48 [[32minfo[39m]: Batch job queued {"batchJobId":"e48b08d2-0fcb-4cb8-9081-9416db3ff55b","total":3}
+22:16:48 [[32minfo[39m]: Batch job completed {"batchJobId":"e48b08d2-0fcb-4cb8-9081-9416db3ff55b"}
+22:16:54 [[32minfo[39m]: Batch job queued {"batchJobId":"dc44b81c-af14-4cea-9b8e-18d9ebfe33b2","total":1}
+22:16:54 [[32minfo[39m]: Batch job completed {"batchJobId":"dc44b81c-af14-4cea-9b8e-18d9ebfe33b2"}
+22:16:59 [[32minfo[39m]: Batch job queued {"batchJobId":"518d0419-92f2-41d5-86a0-f4be3bd1358b","total":1}
+22:16:59 [[32minfo[39m]: Batch job completed {"batchJobId":"518d0419-92f2-41d5-86a0-f4be3bd1358b"}
+22:17:05 [[32minfo[39m]: User logged in {"userId":"a33feec8-1d0a-4a74-b5d6-96544450011c","email":"nishkal0810@gmail.com"}
+22:18:19 [[32minfo[39m]: CSV upload received {"file":"upload_1772815699375_05a369ec-829d-4f4e-805d-b8e534404a24.csv","user":"05a369ec-829d-4f4e-805d-b8e534404a24"}
+22:18:19 [[32minfo[39m]: CSV parsing complete {"total":15,"valid":15,"errors":0}
+22:18:19 [[32minfo[39m]: Bulk upsert complete {"created":0,"updated":15,"errors":0}
+22:18:19 [[32minfo[39m]: Batch job queued {"batchJobId":"9c595a8f-9d36-4837-8744-0481a9157239","total":15}
+22:18:19 [[32minfo[39m]: Auto-predict batch job queued after upload {"batchJobId":"9c595a8f-9d36-4837-8744-0481a9157239"}
+22:18:19 [[32minfo[39m]: CSV upload received {"file":"upload_1772815699829_a33feec8-1d0a-4a74-b5d6-96544450011c.csv","user":"a33feec8-1d0a-4a74-b5d6-96544450011c"}
+22:18:20 [[32minfo[39m]: CSV parsing complete {"total":8481,"valid":8481,"errors":0}
+22:18:20 [[32minfo[39m]: Batch job completed {"batchJobId":"9c595a8f-9d36-4837-8744-0481a9157239"}
+22:18:27 [[32minfo[39m]: Bulk upsert complete {"created":0,"updated":8481,"errors":0}
+22:18:29 [[32minfo[39m]: Batch job queued {"batchJobId":"a22d9e4b-9d70-43b9-a35d-1400863ba3af","total":8481}
+22:18:29 [[32minfo[39m]: Auto-predict batch job queued after upload {"batchJobId":"a22d9e4b-9d70-43b9-a35d-1400863ba3af"}
+22:18:35 [[32minfo[39m]: Socket connected {"socketId":"ShiVV21rD9tx4ImPAAAB","userId":"a33feec8-1d0a-4a74-b5d6-96544450011c"}
+22:20:08 [[32minfo[39m]: CSV upload received {"file":"upload_1772815808558_a33feec8-1d0a-4a74-b5d6-96544450011c.csv","user":"a33feec8-1d0a-4a74-b5d6-96544450011c"}
+22:20:08 [[32minfo[39m]: CSV parsing complete {"total":15,"valid":15,"errors":0}
+22:20:08 [[32minfo[39m]: Bulk upsert complete {"created":0,"updated":15,"errors":0}
+22:20:08 [[32minfo[39m]: Batch job queued {"batchJobId":"cb5901a9-e9e1-4d41-babc-f1e627fa5c76","total":15}
+22:20:08 [[32minfo[39m]: Auto-predict batch job queued after upload {"batchJobId":"cb5901a9-e9e1-4d41-babc-f1e627fa5c76"}
+22:23:33 [[32minfo[39m]: Batch job completed {"batchJobId":"a22d9e4b-9d70-43b9-a35d-1400863ba3af"}
+22:23:34 [[32minfo[39m]: Batch job completed {"batchJobId":"cb5901a9-e9e1-4d41-babc-f1e627fa5c76"}
+22:23:37 [[32minfo[39m]: Socket connected {"socketId":"RcIGxOyxIpNew0VJAAAD","userId":"a33feec8-1d0a-4a74-b5d6-96544450011c"}
+[32m[nodemon] restarting due to changes...[39m
+[32m[nodemon] starting `node src/app.js`[39m
+22:40:35 [[32minfo[39m]: Redis client connected
+22:40:35 [[32minfo[39m]: Redis connected
+22:40:36 [[32minfo[39m]: Prediction worker initialized {"queue":"prediction_queue","concurrency":10}
+22:40:36 [[32minfo[39m]: BullMQ prediction worker started
+22:40:36 [[32minfo[39m]: SmartContainer API running on port 3000 [development]
+22:40:36 [[32minfo[39m]: Redis client connected
+[32m[nodemon] restarting due to changes...[39m
+[32m[nodemon] starting `node src/app.js`[39m
+22:40:48 [[32minfo[39m]: Redis client connected
+22:40:48 [[32minfo[39m]: Redis connected
+22:40:49 [[32minfo[39m]: Prediction worker initialized {"queue":"prediction_queue","concurrency":10}
+22:40:49 [[32minfo[39m]: BullMQ prediction worker started
+node:events:498
+      throw er; // Unhandled 'error' event
+      ^
+
+Error: listen EADDRINUSE: address already in use :::3000
+    at Server.setupListenHandle [as _listen2] (node:net:1898:16)
+    at listenInCluster (node:net:1946:12)
+    at Server.listen (node:net:2044:7)
+    at bootstrap (C:\smart_container\backend\src\app.js:93:16)
+    at process.processTicksAndRejections (node:internal/process/task_queues:95:5)
+Emitted 'error' event on Server instance at:
+    at emitErrorNT (node:net:1925:8)
+    at process.processTicksAndRejections (node:internal/process/task_queues:82:21) {
+  code: 'EADDRINUSE',
+  errno: -4091,
+  syscall: 'listen',
+  address: '::',
+  port: 3000
+}
+
+Node.js v22.2.0
+[31m[nodemon] app crashed - waiting for file changes before starting...[39m
+[32m[nodemon] restarting due to changes...[39m
+[32m[nodemon] starting `node src/app.js`[39m
+[32m[nodemon] restarting due to changes...[39m
+[32m[nodemon] starting `node src/app.js`[39m
+22:40:59 [[32minfo[39m]: Redis client connected
+22:40:59 [[32minfo[39m]: Redis connected
+22:41:00 [[32minfo[39m]: Prediction worker initialized {"queue":"prediction_queue","concurrency":10}
+22:41:00 [[32minfo[39m]: BullMQ prediction worker started
+22:41:00 [[32minfo[39m]: SmartContainer API running on port 3000 [development]
+22:41:00 [[32minfo[39m]: Redis client connected
+[32m[nodemon] restarting due to changes...[39m
+[32m[nodemon] restarting due to changes...[39m
+[32m[nodemon] starting `node src/app.js`[39m
+22:41:03 [[32minfo[39m]: Redis client connected
+22:41:03 [[32minfo[39m]: Redis connected
+22:41:03 [[32minfo[39m]: Prediction worker initialized {"queue":"prediction_queue","concurrency":10}
+22:41:03 [[32minfo[39m]: BullMQ prediction worker started
+22:41:03 [[32minfo[39m]: SmartContainer API running on port 3000 [development]
+22:41:03 [[32minfo[39m]: Redis client connected
+22:50:05 [[32minfo[39m]: User logged in {"userId":"a33feec8-1d0a-4a74-b5d6-96544450011c","email":"nishkal0810@gmail.com"}

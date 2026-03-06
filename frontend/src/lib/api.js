@@ -17,13 +17,72 @@ api.interceptors.request.use(
   (error) => Promise.reject(error)
 );
 
+let isRefreshing = false;
+let refreshQueue = [];
+
+const processQueue = (error, token = null) => {
+  refreshQueue.forEach((p) => (error ? p.reject(error) : p.resolve(token)));
+  refreshQueue = [];
+};
+
 api.interceptors.response.use(
   (response) => response.data,
-  (error) => {
-    if (error.response?.status === 401) {
-      useAuthStore.getState().logout();
-      window.location.href = '/login';
+  async (error) => {
+    const original = error.config;
+
+    // If 401 and not already retrying and not the refresh endpoint itself
+    if (
+      error.response?.status === 401 &&
+      !original._retry &&
+      !original.url?.includes('/auth/refresh') &&
+      !original.url?.includes('/auth/login')
+    ) {
+      const refreshToken = localStorage.getItem('refreshToken');
+
+      if (!refreshToken) {
+        useAuthStore.getState().logout();
+        window.location.href = '/login';
+        return Promise.reject(error);
+      }
+
+      if (isRefreshing) {
+        return new Promise((resolve, reject) => {
+          refreshQueue.push({ resolve, reject });
+        }).then((token) => {
+          original.headers.Authorization = `Bearer ${token}`;
+          return api(original);
+        });
+      }
+
+      original._retry = true;
+      isRefreshing = true;
+
+      try {
+        const res = await axios.post(
+          `${api.defaults.baseURL}/auth/refresh`,
+          { refreshToken },
+          { withCredentials: true }
+        );
+        const newToken = res.data?.data?.accessToken ?? res.data?.accessToken;
+        if (!newToken) throw new Error('No access token in refresh response');
+
+        localStorage.setItem('token', newToken);
+        useAuthStore.setState({ token: newToken, isAuthenticated: true });
+        api.defaults.headers.common.Authorization = `Bearer ${newToken}`;
+
+        processQueue(null, newToken);
+        original.headers.Authorization = `Bearer ${newToken}`;
+        return api(original);
+      } catch (refreshErr) {
+        processQueue(refreshErr, null);
+        useAuthStore.getState().logout();
+        window.location.href = '/login';
+        return Promise.reject(refreshErr);
+      } finally {
+        isRefreshing = false;
+      }
     }
+
     return Promise.reject(error);
   }
 );

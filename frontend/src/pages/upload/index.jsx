@@ -2,7 +2,8 @@
 import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { Link } from 'react-router-dom';
 import { toast } from 'sonner';
-import { Upload, FileText, X, CheckCircle, AlertTriangle, Loader2, ArrowRight } from 'lucide-react';
+import { Upload, FileText, X, CheckCircle, AlertTriangle, Loader2, ArrowRight, Cpu, Database, Zap } from 'lucide-react';
+import { AnimatePresence, motion } from 'framer-motion';
 import api from '../../lib/api';
 
 function StatItem({ label, value, colorClass }) {
@@ -23,16 +24,16 @@ export default function UploadPage() {
   const [result, setResult] = useState(null);
 
   const uploadMutation = useMutation({
-    mutationFn: (formData) => api.post(`/containers/upload${predict ? '?predict=true' : ''}`, formData, {
-      headers: { 'Content-Type': 'multipart/form-data' },
-    }),
+    mutationFn: (formData) => api.post(`/containers/upload${predict ? '?predict=true' : ''}`, formData),
     onSuccess: (res) => {
       const d = res.data ?? res;
       setResult(d);
       setFile(null);
       toast.success(`Upload complete — ${d.uploaded ?? (d.created + d.updated)} containers processed`);
+      // Invalidate everything so dashboard + predictions update immediately
       qc.invalidateQueries({ queryKey: ['containers'] });
       qc.invalidateQueries({ queryKey: ['analytics'] });
+      qc.invalidateQueries({ queryKey: ['predictions'] });
       if (predict) qc.invalidateQueries({ queryKey: ['jobs'] });
     },
     onError: (e) => toast.error(e.response?.data?.message ?? 'Upload failed'),
@@ -60,17 +61,83 @@ export default function UploadPage() {
 
   return (
     <div className="max-w-2xl mx-auto space-y-6 animate-fade-in">
+      {/* Prediction loading overlay */}
+      <AnimatePresence>
+        {uploadMutation.isPending && (
+          <motion.div
+            key="upload-loader"
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            transition={{ duration: 0.2 }}
+            className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm"
+          >
+            <motion.div
+              initial={{ scale: 0.95, opacity: 0, y: 10 }}
+              animate={{ scale: 1, opacity: 1, y: 0 }}
+              exit={{ scale: 0.95, opacity: 0, y: 10 }}
+              transition={{ type: 'spring', stiffness: 400, damping: 28 }}
+              className="bg-card rounded-2xl border border-border shadow-2xl p-8 w-full max-w-sm mx-4"
+            >
+              <div className="text-center mb-6">
+                <div className="w-16 h-16 rounded-2xl bg-primary/10 flex items-center justify-center mx-auto mb-4">
+                  <Loader2 className="w-8 h-8 text-primary animate-spin" />
+                </div>
+                <h3 className="text-base font-bold">Processing your data</h3>
+                <p className="text-sm text-muted-foreground mt-1">
+                  {predict ? 'Uploading and running AI risk scoring…' : 'Uploading and parsing containers…'}
+                </p>
+              </div>
+
+              <div className="space-y-3">
+                {[
+                  { icon: Upload,   label: 'Uploading CSV file',           status: 'done'   },
+                  { icon: Database, label: 'Parsing & saving containers',  status: 'active' },
+                  { icon: Cpu,      label: predict ? 'Queuing AI risk scoring' : 'Finalising records', status: predict ? 'pending' : 'active' },
+                  ...(predict ? [{ icon: Zap, label: 'Background prediction job created', status: 'pending' }] : []),
+                ].map((step, i) => (
+                  <div key={i} className="flex items-center gap-3">
+                    <div className={`w-8 h-8 rounded-lg flex items-center justify-center shrink-0 ${
+                      step.status === 'done'    ? 'bg-emerald-500/10' :
+                      step.status === 'active'  ? 'bg-primary/10' :
+                                                  'bg-muted'
+                    }`}>
+                      {step.status === 'done' ? (
+                        <CheckCircle className="w-4 h-4 text-emerald-600" />
+                      ) : step.status === 'active' ? (
+                        <Loader2 className="w-4 h-4 text-primary animate-spin" />
+                      ) : (
+                        <step.icon className="w-4 h-4 text-muted-foreground/50" />
+                      )}
+                    </div>
+                    <span className={`text-sm ${
+                      step.status === 'done'   ? 'text-muted-foreground line-through' :
+                      step.status === 'active' ? 'text-foreground font-medium' :
+                                                 'text-muted-foreground/50'
+                    }`}>
+                      {step.label}
+                    </span>
+                  </div>
+                ))}
+              </div>
+
+              <p className="text-[11px] text-muted-foreground/60 text-center mt-6">
+                Please don't close this tab…
+              </p>
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
       {/* Drop zone */}
       <div
         onDragOver={(e) => { e.preventDefault(); setDragOver(true); }}
         onDragLeave={() => setDragOver(false)}
         onDrop={handleDrop}
         onClick={() => fileRef.current?.click()}
-        className={`rounded-xl border-2 border-dashed p-12 text-center cursor-pointer transition-all ${
-          dragOver
-            ? 'border-primary bg-primary/5 scale-[1.01]'
-            : 'border-border hover:border-muted-foreground/50 hover:bg-muted/20'
-        }`}>
+        className={`rounded-xl border-2 border-dashed p-12 text-center cursor-pointer transition-all ${dragOver
+          ? 'border-primary bg-primary/5 scale-[1.01]'
+          : 'border-border hover:border-muted-foreground/50 hover:bg-muted/20'
+          }`}>
         <input ref={fileRef} type="file" accept=".csv" className="hidden"
           onChange={e => handleFile(e.target.files[0])} />
         <div className="flex flex-col items-center gap-3">

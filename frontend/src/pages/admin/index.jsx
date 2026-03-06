@@ -1,7 +1,7 @@
 ﻿import { useState } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { toast } from 'sonner';
-import { Loader2, RefreshCw, Trash2, Shield, Users, Database, Zap } from 'lucide-react';
+import { Loader2, RefreshCw, Trash2, Shield, Users, Database, Zap, CheckCircle, XCircle, Activity } from 'lucide-react';
 import api from '../../lib/api';
 
 const ROLES = ['VIEWER', 'ANALYST', 'ADMIN'];
@@ -35,6 +35,15 @@ export default function Admin() {
     onError: (e) => toast.error(e.response?.data?.message ?? 'Update failed'),
   });
 
+  const toggleActive = useMutation({
+    mutationFn: ({ id, is_active }) => api.patch(`/users/${id}`, { is_active }),
+    onSuccess: (_, { is_active }) => {
+      toast.success(is_active ? 'User activated' : 'User deactivated');
+      qc.invalidateQueries({ queryKey: ['admin', 'users'] });
+    },
+    onError: (e) => toast.error(e.response?.data?.message ?? 'Update failed'),
+  });
+
   const flushCache = useMutation({
     mutationFn: () => api.post('/admin/flush-cache'),
     onSuccess: () => {
@@ -46,6 +55,11 @@ export default function Admin() {
 
   const userList = users?.users ?? users?.items ?? users ?? [];
 
+  const jobsByStatus = statsData?.jobs?.by_status ?? {};
+  const completedJobs = jobsByStatus.COMPLETED ?? 0;
+  const failedJobs = jobsByStatus.FAILED ?? 0;
+  const activeJobs = (jobsByStatus.QUEUED ?? 0) + (jobsByStatus.PROCESSING ?? 0);
+
   return (
     <div className="space-y-6 animate-fade-in">
       {/* System Stats */}
@@ -56,15 +70,16 @@ export default function Admin() {
           ))
         ) : (
           [
-            { label: 'Total Users', value: statsData?.users?.total, icon: Users, cls: 'bg-blue-500/10 text-blue-600' },
-            { label: 'Total Containers', value: statsData?.containers?.total, icon: Database, cls: 'bg-indigo-500/10 text-indigo-600' },
-            { label: 'Total Predictions', value: statsData?.predictions?.total, icon: Zap, cls: 'bg-amber-500/10 text-amber-600' },
-            { label: 'Queue Depth', value: statsData?.jobs?.queue_depth ?? 0, icon: Shield, cls: 'bg-emerald-500/10 text-emerald-600' },
-          ].map(({ label, value, icon: Icon, cls }) => (
+            { label: 'Total Users', value: statsData?.users?.total, sub: `${userList.filter(u => u.is_active !== false).length} active`, icon: Users, cls: 'bg-blue-500/10 text-blue-600' },
+            { label: 'Total Containers', value: statsData?.containers?.total, sub: 'in system', icon: Database, cls: 'bg-indigo-500/10 text-indigo-600' },
+            { label: 'Total Predictions', value: statsData?.predictions?.total, sub: 'all-time', icon: Zap, cls: 'bg-amber-500/10 text-amber-600' },
+            { label: 'Batch Jobs', value: statsData?.jobs?.total ?? 0, sub: `${activeJobs} active · ${failedJobs} failed`, icon: Activity, cls: 'bg-emerald-500/10 text-emerald-600' },
+          ].map(({ label, value, sub, icon: Icon, cls }) => (
             <div key={label} className="rounded-lg border border-border bg-card p-5 flex items-start justify-between gap-4">
               <div>
                 <p className="text-xs text-muted-foreground font-medium">{label}</p>
                 <p className="text-2xl font-semibold tabular-nums mt-1">{typeof value === 'number' ? value.toLocaleString() : value ?? '—'}</p>
+                {sub && <p className="text-[11px] text-muted-foreground mt-1">{sub}</p>}
               </div>
               <div className={`w-9 h-9 rounded-lg flex items-center justify-center shrink-0 ${cls}`}>
                 <Icon className="w-4 h-4" />
@@ -73,6 +88,14 @@ export default function Admin() {
           ))
         )}
       </div>
+
+      {/* Queue status bar */}
+      {!statsLoad && statsData?.jobs?.queue_depth > 0 && (
+        <div className="flex items-center gap-2 text-xs text-amber-700 dark:text-amber-400 bg-amber-500/10 border border-amber-500/20 rounded-lg px-4 py-2.5">
+          <Activity className="w-3.5 h-3.5 animate-pulse shrink-0" />
+          <span><strong>{statsData.jobs.queue_depth}</strong> job{statsData.jobs.queue_depth !== 1 ? 's' : ''} currently in the prediction queue</span>
+        </div>
+      )}
 
       {/* Actions */}
       <div className="flex items-center gap-3">
@@ -84,7 +107,7 @@ export default function Admin() {
           disabled={flushCache.isPending}
           className="flex items-center gap-1.5 text-xs bg-amber-500/10 border border-amber-500/20 text-amber-700 dark:text-amber-400 rounded-md px-3 py-1.5 hover:bg-amber-500/20 transition-colors disabled:opacity-60">
           {flushCache.isPending ? <Loader2 className="w-3 h-3 animate-spin" /> : <Trash2 className="w-3 h-3" />}
-          Flush Cache
+          Flush Rate-Limit Cache
         </button>
       </div>
 
@@ -110,7 +133,7 @@ export default function Admin() {
                 ))}</tr>
               ))
             ) : userList.map((u) => (
-              <tr key={u.id} className="hover:bg-muted/20 transition-colors">
+              <tr key={u.id} className={`hover:bg-muted/20 transition-colors ${u.is_active === false ? 'opacity-60' : ''}`}>
                 <td className="px-4 py-3">
                   <div className="flex items-center gap-2">
                     <div className="w-7 h-7 rounded-full bg-primary/10 text-primary text-xs font-semibold flex items-center justify-center">
@@ -135,23 +158,34 @@ export default function Admin() {
                   )}
                 </td>
                 <td className="px-4 py-3">
-                  <span className={`text-xs font-medium px-2 py-0.5 rounded-full ${
+                  <span className={`inline-flex items-center gap-1 text-xs font-medium px-2 py-0.5 rounded-full ${
                     u.is_active !== false
                       ? 'bg-emerald-500/10 text-emerald-600'
                       : 'bg-zinc-500/10 text-zinc-500'
                   }`}>
-                    {u.is_active !== false ? 'Active' : 'Inactive'}
+                    {u.is_active !== false
+                      ? <><CheckCircle className="w-3 h-3" /> Active</>
+                      : <><XCircle className="w-3 h-3" /> Inactive</>}
                   </span>
                 </td>
                 <td className="px-4 py-3 text-xs text-muted-foreground">
                   {u.created_at ? new Date(u.created_at).toLocaleDateString() : '—'}
                 </td>
                 <td className="px-4 py-3">
-                  <button
-                    onClick={() => setEditingUser(editingUser === u.id ? null : u.id)}
-                    className="text-xs text-primary hover:underline">
-                    {editingUser === u.id ? 'Done' : 'Edit Role'}
-                  </button>
+                  <div className="flex items-center gap-2">
+                    <button
+                      onClick={() => setEditingUser(editingUser === u.id ? null : u.id)}
+                      className="text-xs text-primary hover:underline">
+                      {editingUser === u.id ? 'Done' : 'Edit Role'}
+                    </button>
+                    <span className="text-border">·</span>
+                    <button
+                      onClick={() => toggleActive.mutate({ id: u.id, is_active: u.is_active === false })}
+                      disabled={toggleActive.isPending}
+                      className={`text-xs hover:underline disabled:opacity-50 ${u.is_active !== false ? 'text-zinc-500 hover:text-red-600' : 'text-emerald-600'}`}>
+                      {u.is_active !== false ? 'Deactivate' : 'Activate'}
+                    </button>
+                  </div>
                 </td>
               </tr>
             ))}

@@ -1,21 +1,23 @@
 ﻿import { NavLink, useNavigate } from 'react-router-dom';
 import {
   LayoutDashboard, Container, BarChart3, UploadCloud,
-  Layers, ShieldCheck, LogOut, ChevronRight, Cpu, Crosshair,
+  Layers, ShieldCheck, LogOut, ChevronRight, Crosshair,
 } from 'lucide-react';
 import { useAuthStore } from '../../store/authStore';
 import { cn } from '../../lib/utils';
 import api from '../../lib/api';
+import queryClient from '../../lib/queryClient';
 import { toast } from 'sonner';
+import { ContainerLogo } from '../ui/Logo';
 
 const NAV = [
-  { label: 'Dashboard',   to: '/',           icon: LayoutDashboard, roles: null },
-  { label: 'Containers',  to: '/containers', icon: Container,       roles: null },
-  { label: 'Predictions', to: '/predictions', icon: Crosshair,      roles: null },
-  { label: 'Analytics',   to: '/insights',   icon: BarChart3,       roles: null },
-  { label: 'Batch Jobs',  to: '/jobs',       icon: Layers,          roles: null },
-  { label: 'Upload Data', to: '/upload',     icon: UploadCloud,     roles: null },
-  { label: 'Admin',       to: '/admin',      icon: ShieldCheck,     roles: ['ADMIN'] },
+  { label: 'Dashboard',      to: '/',            icon: LayoutDashboard, roles: null },
+  { label: 'Containers',     to: '/containers',  icon: Container,       roles: null },
+  { label: 'Batch Jobs',     to: '/jobs',        icon: Layers,          roles: null },
+  { label: 'Predictions',    to: '/predictions', icon: Crosshair,       roles: null },
+  { label: 'Analytics',      to: '/insights',    icon: BarChart3,       roles: null },
+  { label: 'Upload Dataset', to: '/upload',      icon: UploadCloud,     roles: null },
+  { label: 'Admin',          to: '/admin',       icon: ShieldCheck,     roles: ['ADMIN'] },
 ];
 
 const ROLE_COLORS = {
@@ -30,6 +32,8 @@ export default function Sidebar() {
 
   const handleLogout = async () => {
     try { await api.post('/auth/logout'); } catch (_) {}
+    // Clear all cached query data so next login starts with a fresh fetch
+    queryClient.clear();
     logout();
     navigate('/login');
     toast.success('Signed out successfully');
@@ -45,7 +49,7 @@ export default function Sidebar() {
       {/* Logo */}
       <div className="flex items-center gap-2.5 h-14 px-5 border-b border-border">
         <div className="w-7 h-7 rounded-lg bg-primary flex items-center justify-center shrink-0">
-          <Cpu className="w-4 h-4 text-primary-foreground" />
+          <ContainerLogo className="w-4 h-4 text-primary-foreground" />
         </div>
         <span className="font-semibold text-sm tracking-tight">SmartContainer</span>
       </div>

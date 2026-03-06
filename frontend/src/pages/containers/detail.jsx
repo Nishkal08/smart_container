@@ -4,15 +4,11 @@ import { toast } from 'sonner';
 import {
   ArrowLeft, Zap, Loader2, ShieldAlert, ShieldCheck, AlertTriangle,
   Package, MapPin, Scale, DollarSign, Clock, Ship, FileText,
-  User, Building, BarChart3, ArrowUpRight, ArrowDownRight,
+  User, Building, BarChart3, ArrowUpRight, ArrowDownRight, TrendingUp, TrendingDown,
 } from 'lucide-react';
-import {
-  BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip,
-  ResponsiveContainer, Cell,
-} from 'recharts';
 import api from '../../lib/api';
 import RiskBadge from '../../components/ui/RiskBadge';
-import CountryFlag from '../../components/ui/CountryFlag';
+import CountryFlag, { getCountryName } from '../../components/ui/CountryFlag';
 
 const RISK_COLORS = { CLEAR: '#10b981', LOW_RISK: '#f59e0b', CRITICAL: '#ef4444' };
 
@@ -69,35 +65,40 @@ function InfoCard({ icon: Icon, label, value, sub, iconColor }) {
   );
 }
 
-function SHAPChart({ contributions }) {
+function RiskFactorsChart({ contributions }) {
   if (!contributions || contributions.length === 0) return null;
 
-  const data = contributions.slice(0, 8).map(c => ({
-    feature: c.description || c.feature,
-    value: c.contribution,
-    fill: c.direction === 'increases_risk' ? '#ef4444' : '#10b981',
-  })).reverse();
+  const sorted = [...contributions]
+    .sort((a, b) => Math.abs(b.contribution) - Math.abs(a.contribution))
+    .slice(0, 6);
+  const max = Math.max(...sorted.map(c => Math.abs(c.contribution)), 0.0001);
 
   return (
-    <ResponsiveContainer width="100%" height={data.length * 34 + 20}>
-      <BarChart data={data} layout="vertical" margin={{ top: 0, right: 16, left: 0, bottom: 0 }}>
-        <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" horizontal={false} />
-        <XAxis type="number" tick={{ fontSize: 10, fill: 'hsl(var(--muted-foreground))' }} />
-        <YAxis
-          type="category"
-          dataKey="feature"
-          width={160}
-          tick={{ fontSize: 10, fill: 'hsl(var(--muted-foreground))' }}
-        />
-        <Tooltip
-          contentStyle={{ background: 'hsl(var(--card))', border: '1px solid hsl(var(--border))', borderRadius: 6, fontSize: 12 }}
-          formatter={(v) => [v > 0 ? `+${v.toFixed(4)}` : v.toFixed(4), 'SHAP Impact']}
-        />
-        <Bar dataKey="value" radius={[0, 4, 4, 0]}>
-          {data.map((entry, i) => <Cell key={i} fill={entry.fill} />)}
-        </Bar>
-      </BarChart>
-    </ResponsiveContainer>
+    <div className="space-y-3">
+      {sorted.map((c, i) => {
+        const pct = Math.round((Math.abs(c.contribution) / max) * 100);
+        const isRisk = c.direction === 'increases_risk';
+        return (
+          <div key={i}>
+            <div className="flex items-center justify-between mb-1">
+              <span className="text-xs font-medium text-foreground truncate max-w-[200px]">
+                {c.description || c.feature}
+              </span>
+              <span className={`text-[10px] font-semibold flex items-center gap-0.5 shrink-0 ml-2 ${isRisk ? 'text-red-600' : 'text-emerald-600'}`}>
+                {isRisk ? <TrendingUp className="w-3 h-3" /> : <TrendingDown className="w-3 h-3" />}
+                {isRisk ? 'Higher risk' : 'Lower risk'}
+              </span>
+            </div>
+            <div className="h-2 bg-muted rounded-full overflow-hidden">
+              <div
+                className={`h-full rounded-full transition-all duration-700 ease-out ${isRisk ? 'bg-red-500' : 'bg-emerald-500'}`}
+                style={{ width: `${pct}%` }}
+              />
+            </div>
+          </div>
+        );
+      })}
+    </div>
   );
 }
 
@@ -217,29 +218,29 @@ export default function ContainerDetail() {
         </div>
       )}
 
-      {/* SHAP + Anomalies */}
+      {/* Risk Factors + Anomalies */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
-        {/* SHAP Chart */}
+        {/* Top Risk Factors */}
         <div className="rounded-lg border border-border bg-card p-5">
           <div className="flex items-center gap-2 mb-4">
             <BarChart3 className="w-4 h-4 text-primary" />
-            <h3 className="text-sm font-semibold">Feature Contributions (SHAP)</h3>
+            <h3 className="text-sm font-semibold">Top Risk Factors</h3>
           </div>
           {prediction?.feature_contributions?.length > 0 ? (
             <>
-              <SHAPChart contributions={prediction.feature_contributions} />
-              <div className="flex items-center gap-4 mt-3 text-[10px] text-muted-foreground">
+              <RiskFactorsChart contributions={prediction.feature_contributions} />
+              <div className="flex items-center gap-4 mt-4 text-[10px] text-muted-foreground">
                 <span className="flex items-center gap-1">
-                  <span className="w-2.5 h-2.5 rounded-sm bg-red-500" /> Increases risk
+                  <span className="w-2.5 h-1.5 rounded-full bg-red-500 inline-block" /> Increases risk
                 </span>
                 <span className="flex items-center gap-1">
-                  <span className="w-2.5 h-2.5 rounded-sm bg-emerald-500" /> Decreases risk
+                  <span className="w-2.5 h-1.5 rounded-full bg-emerald-500 inline-block" /> Reduces risk
                 </span>
               </div>
             </>
           ) : (
             <div className="h-48 flex items-center justify-center text-sm text-muted-foreground">
-              No SHAP data — run prediction first
+              No risk factor data — run prediction first
             </div>
           )}
         </div>
@@ -299,14 +300,14 @@ export default function ContainerDetail() {
             value={
               <span className="flex items-center gap-1.5">
                 <CountryFlag code={data.origin_country} />
-                {data.origin_country}
+                {getCountryName(data.origin_country)}
               </span>
             } />
           <InfoCard icon={MapPin} label="Destination" iconColor="bg-indigo-500/10 text-indigo-600"
             value={
               <span className="flex items-center gap-1.5">
                 <CountryFlag code={data.destination_country} />
-                {data.destination_country}
+                {getCountryName(data.destination_country)}
               </span>
             }
             sub={data.destination_port} />

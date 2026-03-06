@@ -30,6 +30,7 @@ const containerQuerySchema = z.object({
   date_from: z.string().regex(/^\d{4}-\d{2}-\d{2}$/).optional(),
   date_to: z.string().regex(/^\d{4}-\d{2}-\d{2}$/).optional(),
   search: z.string().optional(),
+  batch_job_id: z.string().uuid().optional(),
 });
 
 const updateContainerSchema = containerBodySchema.partial();

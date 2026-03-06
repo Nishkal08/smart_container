@@ -18,4 +18,5 @@ USER appuser
 
 EXPOSE 3000
 
-CMD ["node", "src/app.js"]
+# Run migrations then start the app
+CMD ["sh", "-c", "npx prisma migrate deploy && node src/app.js"]

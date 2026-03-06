@@ -49,13 +49,15 @@ async function listContainers(req, res) {
     ...req.query,
     page: parseInt(req.query.page, 10) || 1,
     limit: parseInt(req.query.limit, 10) || 20,
+    userId: req.user.userId,
+    isAdmin: req.user.role === 'ADMIN',
   };
   const result = await containerService.listContainers(query);
   return success(res, result);
 }
 
 async function getContainerById(req, res) {
-  const container = await containerService.getContainerById(req.params.id);
+  const container = await containerService.getContainerById(req.params.id, req.user.userId, req.user.role === 'ADMIN');
   if (!container) return notFound(res, 'Container');
   return success(res, { container });
 }
@@ -66,7 +68,7 @@ async function createContainer(req, res) {
 }
 
 async function updateContainer(req, res) {
-  const container = await containerService.updateContainer(req.params.id, req.body);
+  const container = await containerService.updateContainer(req.params.id, req.body, req.user.userId, req.user.role === 'ADMIN');
   if (!container) return notFound(res, 'Container');
   return success(res, { container });
 }

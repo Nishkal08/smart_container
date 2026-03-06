@@ -24,15 +24,17 @@ export const useAuthStore = create((set, get) => ({
   isAdmin: () => get().user?.role === 'ADMIN',
   isAnalyst: () => ['ADMIN', 'ANALYST'].includes(get().user?.role),
 
-  login: (user, token) => {
+  login: (user, accessToken, refreshToken) => {
     localStorage.setItem('user', JSON.stringify(user));
-    localStorage.setItem('token', token);
-    set({ user, isAuthenticated: true, token });
+    localStorage.setItem('token', accessToken);
+    if (refreshToken) localStorage.setItem('refreshToken', refreshToken);
+    set({ user, isAuthenticated: true, token: accessToken });
   },
 
   logout: () => {
     localStorage.removeItem('user');
     localStorage.removeItem('token');
+    localStorage.removeItem('refreshToken');
     set({ user: null, isAuthenticated: false, token: null });
   },
 
