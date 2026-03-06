@@ -1,0 +1,27 @@
+FROM node:20-alpine
+
+# curl is not needed by the worker (no healthcheck endpoint)
+# but we add it for potential future health probes
+RUN apk add --no-cache curl
+
+WORKDIR /app
+
+# Install all deps first (layer cache)
+COPY package*.json ./
+RUN npm ci
+
+# Copy source
+COPY . .
+
+# Generate Prisma client
+RUN npx prisma generate
+
+# Remove only devDeps (nodemon) after generate
+RUN npm prune --omit=dev
+
+# Non-root user
+RUN adduser -D appuser && chown -R appuser /app
+USER appuser
+
+# Worker does NOT expose a port — it connects outbound to Redis only
+CMD ["node", "src/worker.js"]

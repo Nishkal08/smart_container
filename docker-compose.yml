@@ -48,6 +48,8 @@ services:
       MODEL_VERSION: ${MODEL_VERSION:-xgb-v2.0}
       CLEAR_THRESHOLD: ${CLEAR_THRESHOLD:-30}
       LOW_RISK_THRESHOLD: ${LOW_RISK_THRESHOLD:-60}
+      # Restrict to Node.js backend only; docker-compose internal DNS name is 'backend'
+      ALLOWED_ORIGINS: '["http://backend:3000"]'
     networks:
       - smart_container_net
     depends_on:
@@ -74,11 +76,13 @@ services:
       PORT: 3000
       DATABASE_URL: postgresql://${POSTGRES_USER:-smartcontainer}:${POSTGRES_PASSWORD:-smartcontainer_pass}@postgres:5432/${POSTGRES_DB:-smartcontainer_db}
       REDIS_URL: redis://redis:6379
-      JWT_SECRET: ${JWT_SECRET}
+      # Bug fix: was JWT_SECRET — env.js requires JWT_ACCESS_SECRET
+      JWT_ACCESS_SECRET: ${JWT_ACCESS_SECRET}
       JWT_REFRESH_SECRET: ${JWT_REFRESH_SECRET}
       ML_SERVICE_URL: http://ml_service:8000
       ML_SERVICE_API_KEY: ${ML_SERVICE_API_KEY:-change_me_internal_api_key_must_match_ml_service}
-      ALLOWED_ORIGINS: ${ALLOWED_ORIGINS:-http://localhost:5173}
+      # Bug fix: was ALLOWED_ORIGINS — env.js reads CORS_ORIGINS
+      CORS_ORIGINS: ${CORS_ORIGINS:-http://localhost:5173}
     networks:
       - smart_container_net
     depends_on:
@@ -94,6 +98,32 @@ services:
       timeout: 10s
       retries: 3
       start_period: 30s
+
+  # ── BullMQ Worker (separate process) ─────────────────────────────────────
+  worker:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile.worker
+    container_name: sc_worker
+    restart: unless-stopped
+    environment:
+      NODE_ENV: production
+      DATABASE_URL: postgresql://${POSTGRES_USER:-smartcontainer}:${POSTGRES_PASSWORD:-smartcontainer_pass}@postgres:5432/${POSTGRES_DB:-smartcontainer_db}
+      REDIS_URL: redis://redis:6379
+      JWT_ACCESS_SECRET: ${JWT_ACCESS_SECRET}
+      JWT_REFRESH_SECRET: ${JWT_REFRESH_SECRET}
+      ML_SERVICE_URL: http://ml_service:8000
+      ML_SERVICE_API_KEY: ${ML_SERVICE_API_KEY:-change_me_internal_api_key_must_match_ml_service}
+      CORS_ORIGINS: http://localhost:5173
+    networks:
+      - smart_container_net
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+      ml_service:
+        condition: service_healthy
 
 networks:
   smart_container_net:

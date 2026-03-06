@@ -1,16 +1,22 @@
 FROM node:20-alpine
 
+# curl is required by the Docker healthcheck
+RUN apk add --no-cache curl
+
 WORKDIR /app
 
-# Install deps first (layer cache)
+# Install ALL deps (including prisma CLI) then prune devDeps after generate
 COPY package*.json ./
-RUN npm ci --omit=dev
+RUN npm ci
 
 # Copy source
 COPY . .
 
-# Generate Prisma client
+# Generate Prisma client (requires CLI — prisma is now a prod dep)
 RUN npx prisma generate
+
+# Remove the only remaining devDep (nodemon) to keep image lean
+RUN npm prune --omit=dev
 
 # Non-root user
 RUN adduser -D appuser && chown -R appuser /app
