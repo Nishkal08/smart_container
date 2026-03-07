@@ -99,18 +99,28 @@ async function queueBatchPrediction({ container_ids, job_name, createdBy, isAdmi
     },
   });
 
-  // Enqueue individual prediction tasks
+  // Enqueue containers in chunks of 50 per BullMQ job.
+  // 8500 containers → 170 Redis entries (not 8500) — avoids Redis memory limits.
+  const CHUNK_SIZE = 50;
+  const chunks = [];
+  for (let i = 0; i < containers.length; i += CHUNK_SIZE) {
+    chunks.push(containers.slice(i, i + CHUNK_SIZE));
+  }
+
   const queue = getPredictionQueue();
-  const jobs = containers.map((c) => ({
-    name: 'predict-container',
+  const jobs = chunks.map((chunk, idx) => ({
+    name: 'predict-container-chunk',
     data: {
-      dbContainerId: c.id,
-      containerIdStr: c.container_id,
+      containers: chunk.map(c => ({ dbContainerId: c.id, containerIdStr: c.container_id })),
       batchJobId: batchJob.id,
+      chunkIndex: idx,
     },
   }));
 
-  await queue.addBulk(jobs);
+  // Chunk the addBulk call itself so we never push >500 entries at once to Redis
+  for (let i = 0; i < jobs.length; i += 500) {
+    await queue.addBulk(jobs.slice(i, i + 500));
+  }
 
   logger.info('Batch job queued', { batchJobId: batchJob.id, total: containers.length });
   return batchJob;

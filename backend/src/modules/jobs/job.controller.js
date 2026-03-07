@@ -2,6 +2,13 @@ const jobService = require('./job.service');
 const { success, notFound } = require('../../utils/response');
 const { predictionsToCSV } = require('../../utils/csv.parser');
 
+async function retryJob(req, res) {
+  const isAdmin = req.user.role === 'ADMIN';
+  const job = await jobService.retryJob(req.params.id, req.user.userId, isAdmin);
+  if (!job) return notFound(res, 'Batch job');
+  return success(res, { job });
+}
+
 async function listJobs(req, res) {
   const page = parseInt(req.query.page || '1', 10);
   const limit = Math.min(parseInt(req.query.limit || '20', 10), 50);
@@ -37,4 +44,4 @@ async function deleteJob(req, res) {
   return success(res, result);
 }
 
-module.exports = { listJobs, getJob, cancelJob, getJobResults, deleteJob };
+module.exports = { listJobs, getJob, cancelJob, getJobResults, deleteJob, retryJob };
