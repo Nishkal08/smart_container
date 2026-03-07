@@ -24,5 +24,8 @@ USER appuser
 
 EXPOSE 3000
 
-# Push schema, seed default users, then start the app
-CMD ["sh", "-c", "npx prisma db push --accept-data-loss && node prisma/seed.js && node src/app.js"]
+# Use ENTRYPOINT so Railway's custom Start Command cannot bypass db push + seed
+COPY entrypoint.sh /app/entrypoint.sh
+RUN chmod +x /app/entrypoint.sh
+
+ENTRYPOINT ["/app/entrypoint.sh"]
