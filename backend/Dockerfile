@@ -26,6 +26,6 @@ EXPOSE 3000
 
 # Use ENTRYPOINT so Railway's custom Start Command cannot bypass db push + seed
 COPY entrypoint.sh /app/entrypoint.sh
-RUN chmod +x /app/entrypoint.sh
+RUN sed -i 's/\r$//' /app/entrypoint.sh && chmod +x /app/entrypoint.sh
 
 ENTRYPOINT ["/app/entrypoint.sh"]
