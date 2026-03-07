@@ -123,35 +123,36 @@ async function bulkUpsertContainers(containers, uploadedById) {
   let updated = 0;
   const errors = [];
 
-  // Process in batches of 100 for efficiency
-  const BATCH_SIZE = 100;
+  // Use prisma.upsert (1 query/row) and limit concurrency to 10
+  // to prevent connection pool exhaustion on large CSV uploads.
+  const BATCH_SIZE = 10;
   for (let i = 0; i < containers.length; i += BATCH_SIZE) {
     const batch = containers.slice(i, i + BATCH_SIZE);
-    await Promise.all(
+    const results = await Promise.all(
       batch.map(async (row) => {
         try {
+          // Check existence in the same query window so we can track created vs updated
           const existing = await prisma.container.findUnique({
             where: { container_id: row.container_id },
+            select: { id: true },
           });
-
-          if (existing) {
-            await prisma.container.update({
-              where: { container_id: row.container_id },
-              data: { ...row, source: 'UPLOAD', uploaded_by: uploadedById },
-            });
-            updated++;
-          } else {
-            await prisma.container.create({
-              data: { ...row, source: 'UPLOAD', uploaded_by: uploadedById },
-            });
-            created++;
-          }
+          await prisma.container.upsert({
+            where: { container_id: row.container_id },
+            update: { ...row, source: 'UPLOAD', uploaded_by: uploadedById },
+            create: { ...row, source: 'UPLOAD', uploaded_by: uploadedById },
+          });
+          return { wasNew: !existing };
         } catch (err) {
           logger.warn('Container upsert failed', { container_id: row.container_id, error: err.message });
-          errors.push({ container_id: row.container_id, reason: err.message });
+          return { error: true, container_id: row.container_id, reason: err.message };
         }
       })
     );
+    results.forEach((r) => {
+      if (r.error) errors.push({ container_id: r.container_id, reason: r.reason });
+      else if (r.wasNew) created++;
+      else updated++;
+    });
   }
 
   logger.info('Bulk upsert complete', { created, updated, errors: errors.length });
