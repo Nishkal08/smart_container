@@ -1,4 +1,4 @@
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, ConfigDict, Field
 from typing import Optional, List, Any
 from enum import Enum
 
@@ -41,6 +41,8 @@ class FeatureContribution(BaseModel):
 
 
 class PredictionResult(BaseModel):
+    model_config = ConfigDict(protected_namespaces=())
+
     container_id: str
     risk_score: float = Field(..., ge=0, le=100)
     risk_level: RiskLevel
@@ -58,6 +60,8 @@ class BatchPredictionRequest(BaseModel):
 
 
 class BatchPredictionResponse(BaseModel):
+    model_config = ConfigDict(protected_namespaces=())
+
     results: List[PredictionResult]
     total: int
     succeeded: int
