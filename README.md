@@ -1,32 +1,8 @@
-# SmartContainer Risk Engine
+# SmartContainer — AI-Powered Container Risk Intelligence System
 
-An AI-powered container shipment risk scoring and anomaly detection system built for the SmartContainer hackathon.
+> **Helping customs officers identify suspicious shipments before they clear the border.**
 
-## Architecture
-
-```
-                  ┌─────────────────┐
-  HTTP Client ──► │  Node.js/Express │  :3000
-                  │  (API Gateway)   │
-                  └────────┬────────┘
-                           │ internal HTTP
-                  ┌────────▼────────┐       ┌──────────┐
-                  │  FastAPI ML Svc │  ────► │ Redis    │
-                  │  (Risk Engine)  │  :8000 └──────────┘
-                  └─────────────────┘
-                           │
-                  ┌────────▼────────┐
-                  │   PostgreSQL    │
-                  └─────────────────┘
-```
-
-- **Node.js + Express** — REST API, auth (JWT), job orchestration (BullMQ), real-time events (Socket.io)
-- **FastAPI** — ML inference / mock risk engine (fully swappable when real model is ready)
-- **PostgreSQL + Prisma** — Primary data store
-- **Redis** — JWT blacklist, rate limiting, BullMQ backend
-- **BullMQ** — Async batch prediction queue (concurrency=10)
-- **Socket.io** — Real-time batch job progress to clients
-- **Docker Compose** — Full local and production orchestration
+SmartContainer is a full-stack, production-grade microservice platform that applies machine learning to shipping container data to automatically score, classify, and explain risk on every container in a dataset. Customs officers and trade-compliance analysts upload bulk shipment manifests, trigger batch predictions, and immediately receive prioritised inspection lists — ranked by risk score and backed by plain-English anomaly explanations.
 
 ---
 
@@ -178,19 +154,6 @@ The mock engine scores containers 0–100 across 5 weighted factors:
 - **CRITICAL** — score 61–100
 
 When the real model is ready, only `ml_service/app/models/risk_engine.py` needs to be updated.
-
----
-
-## Default Credentials (seed)
-
-| Role | Email | Password |
-|------|-------|----------|
-| ADMIN | admin@smartcontainer.dev | Admin123! |
-| ANALYST | analyst@smartcontainer.dev | Analyst123! |
-
-> Change these immediately in any non-local environment.
-
----
 
 ## Project Structure
 

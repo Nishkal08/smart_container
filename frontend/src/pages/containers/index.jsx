@@ -30,6 +30,7 @@ export default function Containers() {
   const [batchFilter, setBatchFilter] = useState('');
   const [selected, setSelected] = useState(null);
   const [rescoring, setRescoring] = useState(null);
+  const [confirmDeleteId, setConfirmDeleteId] = useState(null);
   const [sortBy, setSortBy] = useState('risk_score');
   const [sortDir, setSortDir] = useState('desc');
 
@@ -346,16 +347,31 @@ export default function Containers() {
                   <ExternalLink className="w-4 h-4" /> Full Details
                 </Link>
                 {isAdmin && (
-                  <button
-                    onClick={() => {
-                      if (confirm('Delete this container? This cannot be undone.')) {
-                        deleteMutation.mutate(selected.id);
-                      }
-                    }}
-                    disabled={deleteMutation.isPending}
-                    className="w-full flex items-center justify-center gap-2 border border-red-400 text-red-600 rounded-md px-4 py-2 text-sm font-medium hover:bg-red-500/10 transition-colors">
-                    <Trash2 className="w-4 h-4" /> Delete Container
-                  </button>
+                  confirmDeleteId === selected.id ? (
+                    <div className="rounded-md border border-red-500/30 bg-red-500/5 p-3 space-y-2">
+                      <p className="text-xs font-semibold text-red-600">Delete this container?</p>
+                      <p className="text-xs text-muted-foreground">This cannot be undone. All predictions will also be removed.</p>
+                      <div className="flex gap-2 mt-1">
+                        <button onClick={() => setConfirmDeleteId(null)}
+                          className="flex-1 h-8 rounded-md border border-border text-xs hover:bg-muted transition-colors">
+                          Cancel
+                        </button>
+                        <button
+                          onClick={() => { deleteMutation.mutate(selected.id); setConfirmDeleteId(null); }}
+                          disabled={deleteMutation.isPending}
+                          className="flex-1 h-8 rounded-md bg-red-600 text-white text-xs font-semibold hover:bg-red-700 disabled:opacity-60 flex items-center justify-center gap-1.5 transition-colors">
+                          {deleteMutation.isPending ? <Loader2 className="w-3 h-3 animate-spin" /> : <Trash2 className="w-3 h-3" />}
+                          Delete
+                        </button>
+                      </div>
+                    </div>
+                  ) : (
+                    <button
+                      onClick={() => setConfirmDeleteId(selected.id)}
+                      className="w-full flex items-center justify-center gap-2 border border-red-400 text-red-600 rounded-md px-4 py-2 text-sm font-medium hover:bg-red-500/10 transition-colors">
+                      <Trash2 className="w-4 h-4" /> Delete Container
+                    </button>
+                  )
                 )}
               </div>
             </div>

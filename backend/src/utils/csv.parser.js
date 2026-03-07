@@ -83,7 +83,7 @@ function parseCSVFile(filePath) {
  * This produces the submission-format output required by the problem statement.
  */
 function predictionsToCSV(predictions) {
-  const header = 'Container_ID,Risk_Score,Risk_Level,Explanation_Summary,Weight_Discrepancy_Pct,Value_Per_Kg,Model_Version,Created_At\n';
+  const header = 'Container_ID,Risk_Score,Risk_Level,Explanation_Summary\n';
   const rows = predictions.map((p) => {
     const explanation = `"${(p.explanation_summary || '').replace(/"/g, '""')}"`;
     return [
@@ -91,10 +91,6 @@ function predictionsToCSV(predictions) {
       p.risk_score,
       p.risk_level,
       explanation,
-      p.weight_discrepancy_pct !== null ? p.weight_discrepancy_pct.toFixed(2) : '',
-      p.value_per_kg !== null ? p.value_per_kg.toFixed(2) : '',
-      p.model_version || '',
-      p.created_at ? new Date(p.created_at).toISOString() : '',
     ].join(',');
   });
   return header + rows.join('\n');

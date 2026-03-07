@@ -58,15 +58,21 @@ function NewJobDialog({ onClose }) {
 
   const createMutation = useMutation({
     mutationFn: async ({ job_name, scope }) => {
-      const params = new URLSearchParams({ page: '1', limit: '5000' });
-      if (scope !== 'all') params.set('risk_level', scope);
-      const r = await api.get(`/containers?${params}`);
-      const containers = r.data?.containers ?? [];
-      if (containers.length === 0) throw new Error('No containers match the selected scope');
-      return api.post('/predictions/batch', {
-        container_ids: containers.map(c => c.id),
-        job_name,
-      });
+      const PAGE_LIMIT = 1000;
+      let page = 1;
+      const allIds = [];
+      while (true) {
+        const params = new URLSearchParams({ page: String(page), limit: String(PAGE_LIMIT) });
+        if (scope !== 'all') params.set('risk_level', scope);
+        const r = await api.get(`/containers?${params}`);
+        const containers = r.data?.containers ?? [];
+        allIds.push(...containers.map(c => c.id));
+        const total = r.data?.pagination?.total ?? r.data?.total ?? containers.length;
+        if (allIds.length >= total || containers.length < PAGE_LIMIT) break;
+        page++;
+      }
+      if (allIds.length === 0) throw new Error('No containers match the selected scope');
+      return api.post('/predictions/batch', { container_ids: allIds, job_name });
     },
     onSuccess: () => {
       toast.success('Batch prediction queued!');
@@ -230,6 +236,10 @@ export default function Jobs() {
         if (old?.items) return { ...old, items: updated };
         return old;
       });
+      // Keep the detail drawer in sync without waiting for the 4s refetch interval
+      qc.setQueryData(['job-detail', job_id], (old) =>
+        old ? { ...old, processed_count, total_containers, progress_pct: progress } : old
+      );
     };
 
     const onCompleted = ({ job_id }) => {
@@ -328,7 +338,13 @@ export default function Jobs() {
                 <td className="px-4 py-3"><StatusBadge status={job.status} /></td>
                 <td className="px-4 py-3">
                   <div className="flex items-center gap-2">
-                    <ProgressBar pct={job.progress ?? (job.status === 'COMPLETED' ? 100 : 0)} />
+                    <ProgressBar pct={
+                      job.status === 'COMPLETED' ? 100
+                        : job.progress !== undefined ? job.progress
+                          : job.total_containers > 0
+                            ? Math.round(((job.processed_count ?? 0) / job.total_containers) * 100)
+                            : 0
+                    } />
                     <span className="text-xs text-muted-foreground tabular-nums">
                       {job.processed_count ?? 0}/{job.total_containers ?? '?'}
                     </span>

@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import { AnimatePresence, motion } from 'framer-motion';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { toast } from 'sonner';
 import { Link } from 'react-router-dom';
@@ -381,26 +382,29 @@ export default function Predictions() {
 
   const filtered = predictions;
 
-  // Stats from current view
-  const criticalCount = predictions.filter(p => p.risk_level === 'CRITICAL').length;
-  const lowRiskCount = predictions.filter(p => p.risk_level === 'LOW_RISK').length;
-  const clearCount = predictions.filter(p => p.risk_level === 'CLEAR').length;
+  const { data: analytics } = useQuery({
+    queryKey: ['analytics', 'summary'],
+    queryFn: () => api.get('/analytics/summary').then(r => r.data),
+    staleTime: 30_000,
+  });
 
   return (
     <div className={`space-y-5 animate-fade-in transition-all duration-300 ${selected ? 'pr-[500px]' : ''}`}>
-      {/* Mini Stats */}
+      {/* Global Stats */}
       <div className="grid grid-cols-3 gap-3">
         {[
-          { label: 'Critical', count: criticalCount, color: 'text-red-600 bg-red-500/10', Icon: ShieldAlert },
-          { label: 'Low Risk', count: lowRiskCount, color: 'text-amber-600 bg-amber-500/10', Icon: AlertTriangle },
-          { label: 'Clear', count: clearCount, color: 'text-emerald-600 bg-emerald-500/10', Icon: ShieldCheck },
+          { label: 'Critical', count: analytics?.risk_distribution?.CRITICAL, iconCls: 'text-red-600 bg-red-500/10', borderCls: 'border-red-500/20', Icon: ShieldAlert },
+          { label: 'Low Risk', count: analytics?.risk_distribution?.LOW_RISK,  iconCls: 'text-amber-600 bg-amber-500/10', borderCls: 'border-amber-500/20', Icon: AlertTriangle },
+          { label: 'Clear',    count: analytics?.risk_distribution?.CLEAR,     iconCls: 'text-emerald-600 bg-emerald-500/10', borderCls: 'border-emerald-500/20', Icon: ShieldCheck },
         ].map(s => (
-          <div key={s.label} className="rounded-lg border border-border bg-card p-4 flex items-center gap-3">
-            <div className={`w-9 h-9 rounded-lg flex items-center justify-center shrink-0 ${s.color}`}>
+          <div key={s.label} className={`rounded-lg border bg-card p-4 flex items-center gap-3 ${s.borderCls}`}>
+            <div className={`w-9 h-9 rounded-lg flex items-center justify-center shrink-0 ${s.iconCls}`}>
               <s.Icon className="w-4 h-4" />
             </div>
             <div>
-              <p className="text-xl font-semibold tabular-nums">{s.count}</p>
+              <p className="text-xl font-semibold tabular-nums">
+                {s.count != null ? s.count.toLocaleString() : <span className="text-muted-foreground/40 text-base">—</span>}
+              </p>
               <p className="text-xs text-muted-foreground">{s.label}</p>
             </div>
           </div>
@@ -597,13 +601,25 @@ export default function Predictions() {
       </div>
 
       {/* Detail Drawer */}
-      {selected && (
-        <>
-          <div className="fixed inset-0 top-14 z-30" style={{ right: '500px' }} onClick={() => setSelected(null)} />
-          <div
-            className="fixed right-0 top-14 bottom-0 w-[500px] bg-card border-l border-border shadow-xl z-40 overflow-y-auto animate-slide-in-right"
-            onClick={e => e.stopPropagation()}
-          >
+      <AnimatePresence>
+        {selected && (
+          <>
+            <motion.div
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              className="fixed inset-0 top-14 z-30"
+              style={{ right: '500px' }}
+              onClick={() => setSelected(null)}
+            />
+            <motion.div
+              initial={{ x: '100%' }}
+              animate={{ x: 0 }}
+              exit={{ x: '100%' }}
+              transition={{ type: 'spring', stiffness: 320, damping: 32, mass: 0.8 }}
+              className="fixed right-0 top-14 bottom-0 w-[500px] bg-card border-l border-border shadow-xl z-40 overflow-y-auto"
+              onClick={e => e.stopPropagation()}
+            >
             {/* Header */}
             <div className="flex items-start justify-between p-5 border-b border-border sticky top-0 bg-card z-10">
               <div>
@@ -709,9 +725,10 @@ export default function Predictions() {
                 View Full Details <ArrowUpRight className="w-4 h-4" />
               </Link>
             </div>
-          </div>
+          </motion.div>
         </>
-      )}
+        )}
+      </AnimatePresence>
 
       {/* Single Predict Dialog */}
       {showSinglePredict && <SinglePredictDialog onClose={() => setShowSinglePredict(false)} />}

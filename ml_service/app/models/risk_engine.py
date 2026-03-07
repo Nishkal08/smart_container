@@ -210,15 +210,22 @@ def _get_feature_contributions(features: np.ndarray, predicted_class: int) -> li
                 class_vals = sv[0, :, predicted_class]
             # Sort by absolute impact
             sorted_idx = np.argsort(np.abs(class_vals))[::-1]
+            # For class 0 (CLEAR): positive SHAP = more likely CLEAR = lower risk → invert direction
+            # For all other classes (LOW_RISK, CRITICAL): positive SHAP = more likely that class = higher risk
+            is_clear = (predicted_class == 0)
             for i in sorted_idx[:8]:  # top 8 features
                 val = float(class_vals[i])
                 if abs(val) < 0.001:
                     continue
+                if is_clear:
+                    direction = "decreases_risk" if val > 0 else "increases_risk"
+                else:
+                    direction = "increases_risk" if val > 0 else "decreases_risk"
                 contributions.append({
                     "feature": FEATURE_NAMES[i],
                     "contribution": round(val, 4),
                     "abs_contribution": round(abs(val), 4),
-                    "direction": "increases_risk" if val > 0 else "decreases_risk",
+                    "direction": direction,
                     "description": _SHAP_REASON_MAP.get(FEATURE_NAMES[i], FEATURE_NAMES[i]),
                 })
             return contributions
@@ -228,15 +235,20 @@ def _get_feature_contributions(features: np.ndarray, predicted_class: int) -> li
     # Fallback: feature importance × feature value
     importances = _model.feature_importances_ * features
     sorted_idx = np.argsort(np.abs(importances))[::-1]
+    is_clear = (predicted_class == 0)
     for i in sorted_idx[:8]:
         val = float(importances[i])
         if abs(val) < 0.001:
             continue
+        if is_clear:
+            direction = "decreases_risk" if val > 0 else "increases_risk"
+        else:
+            direction = "increases_risk" if val > 0 else "decreases_risk"
         contributions.append({
             "feature": FEATURE_NAMES[i],
             "contribution": round(val, 4),
             "abs_contribution": round(abs(val), 4),
-            "direction": "increases_risk" if val > 0 else "decreases_risk",
+            "direction": direction,
             "description": _SHAP_REASON_MAP.get(FEATURE_NAMES[i], FEATURE_NAMES[i]),
         })
     return contributions
