@@ -18,14 +18,13 @@ RUN npx prisma generate
 # Remove the only remaining devDep (nodemon) to keep image lean
 RUN npm prune --omit=dev
 
+# Fix entrypoint line endings and permissions (must be done as root, before USER switch)
+RUN sed -i 's/\r$//' entrypoint.sh && chmod +x entrypoint.sh
+
 # Non-root user
 RUN useradd --create-home appuser && chown -R appuser /app
 USER appuser
 
 EXPOSE 3000
-
-# Use ENTRYPOINT so Railway's custom Start Command cannot bypass db push + seed
-COPY entrypoint.sh /app/entrypoint.sh
-RUN sed -i 's/\r$//' /app/entrypoint.sh && chmod +x /app/entrypoint.sh
 
 ENTRYPOINT ["/app/entrypoint.sh"]
