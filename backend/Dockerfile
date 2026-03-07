@@ -24,5 +24,5 @@ USER appuser
 
 EXPOSE 3000
 
-# Push schema to database then start the app
-CMD ["sh", "-c", "npx prisma db push --accept-data-loss && node src/app.js"]
+# Push schema, seed default users, then start the app
+CMD ["sh", "-c", "npx prisma db push --accept-data-loss && node prisma/seed.js && node src/app.js"]
