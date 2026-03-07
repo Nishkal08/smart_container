@@ -1,7 +1,7 @@
 FROM node:20-alpine
 
-# curl is required by the Docker healthcheck
-RUN apk add --no-cache curl
+# curl + openssl required by healthcheck and Prisma query engine
+RUN apk add --no-cache curl openssl openssl-dev
 
 WORKDIR /app
 
