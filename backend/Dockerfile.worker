@@ -1,7 +1,7 @@
 FROM node:20-slim
 
-# OpenSSL already present on Debian slim (required by Prisma engine)
-RUN apt-get update && apt-get install -y --no-install-recommends curl && rm -rf /var/lib/apt/lists/*
+# openssl for Prisma schema/query engine binaries (libssl.so.3)
+RUN apt-get update && apt-get install -y --no-install-recommends curl openssl && rm -rf /var/lib/apt/lists/*
 
 WORKDIR /app
 
