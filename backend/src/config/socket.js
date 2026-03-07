@@ -78,4 +78,29 @@ function emitJobFailed(jobId, data) {
   }
 }
 
-module.exports = { initSocketServer, getSocketServer, emitJobProgress, emitJobCompleted, emitJobFailed };
+/**
+ * Subscribe to Redis pub/sub channels and forward events to Socket.IO.
+ * Must be called with a dedicated subscriber Redis connection after initSocketServer().
+ */
+function setupSocketBridge(subscriber) {
+  subscriber.subscribe('socket:job:progress', 'socket:job:completed', 'socket:job:failed', (err) => {
+    if (err) {
+      logger.error('Socket bridge subscription failed', { error: err.message });
+    } else {
+      logger.info('Socket bridge active — listening on Redis pub/sub channels');
+    }
+  });
+
+  subscriber.on('message', (channel, message) => {
+    try {
+      const { jobId, data } = JSON.parse(message);
+      if (channel === 'socket:job:progress') emitJobProgress(jobId, data);
+      else if (channel === 'socket:job:completed') emitJobCompleted(jobId, data);
+      else if (channel === 'socket:job:failed') emitJobFailed(jobId, data);
+    } catch (e) {
+      logger.warn('Socket bridge message parse error', { error: e.message });
+    }
+  });
+}
+
+module.exports = { initSocketServer, getSocketServer, emitJobProgress, emitJobCompleted, emitJobFailed, setupSocketBridge };

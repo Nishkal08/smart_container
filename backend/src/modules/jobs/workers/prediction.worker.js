@@ -1,10 +1,20 @@
 const { Worker } = require('bullmq');
-const { createBullMQConnection } = require('../../../config/redis');
+const { createBullMQConnection, getRedisClient } = require('../../../config/redis');
 const { PREDICTION_QUEUE_NAME } = require('../../../config/bullmq');
 const { predictSingle } = require('../../../utils/apiClient');
-const { emitJobProgress, emitJobCompleted, emitJobFailed } = require('../../../config/socket');
 const prisma = require('../../../config/db');
 const logger = require('../../../utils/logger');
+
+// Publish socket events via Redis pub/sub so the backend service
+// (which owns Socket.IO) can relay them — works from both the in-process
+// worker (app.js) and the standalone worker service (worker.js).
+function publishSocketEvent(channel, jobId, data) {
+  try {
+    getRedisClient().publish(channel, JSON.stringify({ jobId, data }));
+  } catch (e) {
+    logger.warn('Socket event publish failed', { channel, error: e.message });
+  }
+}
 
 const worker = new Worker(
   PREDICTION_QUEUE_NAME,
@@ -76,8 +86,8 @@ const worker = new Worker(
 
       const pct = (updatedJob.processed_count / updatedJob.total_containers) * 100;
 
-      // Emit real-time progress via Socket.io
-      emitJobProgress(batchJobId, {
+      // Emit real-time progress via Redis pub/sub → Socket.IO bridge
+      publishSocketEvent('socket:job:progress', batchJobId, {
         processed: updatedJob.processed_count,
         total: updatedJob.total_containers,
         pct: Math.round(pct * 10) / 10,
@@ -90,7 +100,7 @@ const worker = new Worker(
           where: { id: batchJobId },
           data: { status: 'COMPLETED', completed_at: new Date() },
         });
-        emitJobCompleted(batchJobId, {
+        publishSocketEvent('socket:job:completed', batchJobId, {
           total: updatedJob.total_containers,
           failed_count: updatedJob.failed_count,
           completed_at: new Date().toISOString(),
@@ -130,9 +140,9 @@ worker.on('failed', async (job, err) => {
       });
 
       if (finalStatus === 'FAILED') {
-        emitJobFailed(batchJobId, { error: 'All prediction tasks failed' });
+        publishSocketEvent('socket:job:failed', batchJobId, { error: 'All prediction tasks failed' });
       } else {
-        emitJobCompleted(batchJobId, {
+        publishSocketEvent('socket:job:completed', batchJobId, {
           total: updatedJob.total_containers,
           failed_count: updatedJob.failed_count,
           completed_at: new Date().toISOString(),

@@ -63,6 +63,14 @@ async function bootstrap() {
     await connectRedis();
     logger.info('Redis connected');
 
+    // Set up Redis pub/sub bridge so socket events published by the
+    // BullMQ worker (even in a separate process) reach Socket.IO.
+    const { setupSocketBridge } = require('./config/socket');
+    const { createBullMQConnection } = require('./config/redis');
+    const socketSubscriber = createBullMQConnection();
+    await socketSubscriber.connect();
+    setupSocketBridge(socketSubscriber);
+
     // Register routes that depend on Redis (rate-limit-redis initializes
     // RedisStore synchronously in its constructor, so Redis must be ready first)
     const authRoutes = require('./modules/auth/auth.routes');
