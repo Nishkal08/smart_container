@@ -1,7 +1,7 @@
-FROM node:20-alpine
+FROM node:20-slim
 
-# curl + openssl required by healthcheck and Prisma query engine
-RUN apk add --no-cache curl openssl openssl-dev
+# curl required by the Docker healthcheck; OpenSSL already present on Debian slim
+RUN apt-get update && apt-get install -y --no-install-recommends curl && rm -rf /var/lib/apt/lists/*
 
 WORKDIR /app
 
@@ -19,7 +19,7 @@ RUN npx prisma generate
 RUN npm prune --omit=dev
 
 # Non-root user
-RUN adduser -D appuser && chown -R appuser /app
+RUN useradd --create-home appuser && chown -R appuser /app
 USER appuser
 
 EXPOSE 3000
