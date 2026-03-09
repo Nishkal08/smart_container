@@ -16,24 +16,27 @@ export default function MainLayout() {
   return (
     <div className="flex h-screen w-full bg-background overflow-hidden p-3 gap-3">
       <Sidebar />
-      {/* Right panel card */}
-      <div className="flex flex-col flex-1 min-w-0 overflow-hidden rounded-2xl bg-card border border-border p-2 gap-2">
+      {/* Right column — TopNav floats above the content card */}
+      <div className="flex flex-col flex-1 min-w-0 overflow-hidden gap-3">
         <TopNav />
-        <main className="flex-1 overflow-y-auto rounded-xl relative pb-16 md:pb-0">
-          {/* Subtle warm noise background */}
-          <div
-            className="absolute inset-0 pointer-events-none opacity-[0.015] dark:opacity-[0.025]"
-            style={{
-              backgroundImage: 'radial-gradient(hsl(var(--foreground)) 1px, transparent 1px)',
-              backgroundSize: '28px 28px',
-            }}
-          />
-          {/* Top-right ambient glow — orange tint */}
-          <div className="absolute top-0 right-0 w-[500px] h-[350px] bg-primary/8 rounded-full blur-3xl opacity-50 pointer-events-none -translate-y-1/3 translate-x-1/4" />
-          <div className="px-4 md:px-6 py-5 max-w-[1400px] mx-auto relative z-10">
-            <Outlet />
-          </div>
-        </main>
+        {/* Main content card */}
+        <div className="flex-1 overflow-hidden rounded-2xl bg-card border border-border relative">
+          <main className="h-full overflow-y-auto relative pb-16 md:pb-0">
+            {/* Subtle warm noise background */}
+            <div
+              className="absolute inset-0 pointer-events-none opacity-[0.015] dark:opacity-[0.025]"
+              style={{
+                backgroundImage: 'radial-gradient(hsl(var(--foreground)) 1px, transparent 1px)',
+                backgroundSize: '28px 28px',
+              }}
+            />
+            {/* Top-right ambient glow — orange tint */}
+            <div className="absolute top-0 right-0 w-[500px] h-[350px] bg-primary/8 rounded-full blur-3xl opacity-50 pointer-events-none -translate-y-1/3 translate-x-1/4" />
+            <div className="px-4 md:px-6 py-5 max-w-[1400px] mx-auto relative z-10">
+              <Outlet />
+            </div>
+          </main>
+        </div>
       </div>
 
       {/* Mobile bottom navigation — Momentum style */}
