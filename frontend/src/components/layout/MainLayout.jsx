@@ -16,9 +16,10 @@ export default function MainLayout() {
   return (
     <div className="flex h-screen w-full bg-background overflow-hidden p-3 gap-3">
       <Sidebar />
-      <div className="flex flex-col flex-1 min-w-0 overflow-hidden">
+      {/* Right panel card */}
+      <div className="flex flex-col flex-1 min-w-0 overflow-hidden rounded-2xl bg-card border border-border p-2 gap-2">
         <TopNav />
-        <main className="flex-1 overflow-y-auto relative pb-16 md:pb-0">
+        <main className="flex-1 overflow-y-auto rounded-xl relative pb-16 md:pb-0">
           {/* Subtle warm noise background */}
           <div
             className="absolute inset-0 pointer-events-none opacity-[0.015] dark:opacity-[0.025]"
