@@ -64,24 +64,34 @@ async function predictContainer(containerId, userId, isAdmin) {
  * Queue a batch prediction job.
  * Returns the created batch_job record.
  */
-async function queueBatchPrediction({ container_ids, job_name, createdBy, isAdmin }) {
-  // Validate that requested container IDs exist (non-admin: only own containers + shared)
-  const ownerCond = (!isAdmin && createdBy)
-    ? [{ OR: [{ uploaded_by: createdBy }, { uploaded_by: null }] }]
-    : [];
-  const containers = await prisma.container.findMany({
-    where: {
-      AND: [
-        { OR: [{ id: { in: container_ids } }, { container_id: { in: container_ids } }] },
-        { deleted_at: null },
-        ...ownerCond,
-      ],
-    },
-    select: { id: true, container_id: true },
-  });
+async function queueBatchPrediction({ container_ids, scope, job_name, createdBy, isAdmin }) {
+  // All authenticated users can queue any container — shared pool for customs inspection.
+  let containers;
+  if (scope !== undefined) {
+    // Scope-based: backend resolves which containers to process
+    const where = { deleted_at: null };
+    if (scope !== 'all') {
+      where.predictions = { some: { risk_level: scope } };
+    }
+    containers = await prisma.container.findMany({
+      where,
+      select: { id: true, container_id: true },
+    });
+  } else {
+    // Legacy: explicit container ID list supplied by caller
+    containers = await prisma.container.findMany({
+      where: {
+        AND: [
+          { OR: [{ id: { in: container_ids } }, { container_id: { in: container_ids } }] },
+          { deleted_at: null },
+        ],
+      },
+      select: { id: true, container_id: true },
+    });
+  }
 
   if (containers.length === 0) {
-    const err = new Error('No valid containers found for the provided IDs');
+    const err = new Error('No valid containers found for the selected scope');
     err.statusCode = 422;
     err.code = 'UNPROCESSABLE';
     throw err;
@@ -186,16 +196,10 @@ async function listPredictions({ page, limit, risk_level, date_from, date_to, is
 }
 
 async function getPredictionByContainerId(containerId, userId, isAdmin) {
-  const ownerCond = (!isAdmin && userId)
-    ? [{ OR: [{ uploaded_by: userId }, { uploaded_by: null }] }]
-    : [];
   return prisma.prediction.findFirst({
     where: {
       container: {
-        AND: [
-          { OR: [{ id: containerId }, { container_id: containerId }] },
-          ...ownerCond,
-        ],
+        OR: [{ id: containerId }, { container_id: containerId }],
       },
     },
     orderBy: { created_at: 'desc' },
@@ -213,7 +217,6 @@ async function getAllPredictionsForExport({ risk_level, date_from, date_to, user
     if (date_from) where.created_at.gte = new Date(date_from);
     if (date_to) where.created_at.lte = new Date(date_to + 'T23:59:59Z');
   }
-  if (!isAdmin && userId) where.container = { OR: [{ uploaded_by: userId }, { uploaded_by: null }] };
   return prisma.prediction.findMany({
     where,
     orderBy: { created_at: 'desc' },
@@ -223,12 +226,9 @@ async function getAllPredictionsForExport({ risk_level, date_from, date_to, user
 
 async function reScoreContainer(containerId, userId, isAdmin) {
   // Resolve container
-  const ownerCond = (!isAdmin && userId)
-    ? [{ OR: [{ uploaded_by: userId }, { uploaded_by: null }] }]
-    : [];
   const container = await prisma.container.findFirst({
     where: {
-      AND: [{ OR: [{ id: containerId }, { container_id: containerId }] }, { deleted_at: null }, ...ownerCond],
+      AND: [{ OR: [{ id: containerId }, { container_id: containerId }] }, { deleted_at: null }],
     },
   });
 

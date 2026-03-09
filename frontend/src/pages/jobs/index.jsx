@@ -1,5 +1,6 @@
 ﻿import { useState, useEffect, useRef } from 'react';
-import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import { useQuery, useQueries, useMutation, useQueryClient } from '@tanstack/react-query';
+import { motion } from 'framer-motion';
 import { toast } from 'sonner';
 import { Loader2, Download, X, Clock, CheckCircle, XCircle, AlertTriangle, RefreshCw, Plus, Boxes, ShieldAlert, ShieldCheck, Trash2, Copy } from 'lucide-react';
 import api from '../../lib/api';
@@ -25,19 +26,19 @@ function StatusBadge({ status }) {
   );
 }
 
-function ProgressBar({ pct }) {
+function ProgressBar({ pct, className = 'w-32 h-2' }) {
   return (
-    <div className="w-24 h-1.5 bg-muted rounded-full overflow-hidden">
-      <div className="h-full bg-primary rounded-full transition-all duration-300" style={{ width: `${pct ?? 0}%` }} />
+    <div className={`bg-muted rounded-full overflow-hidden ${className}`}>
+      <div className="h-full bg-primary rounded-full transition-all duration-500" style={{ width: `${pct ?? 0}%` }} />
     </div>
   );
 }
 
 const SCOPES = [
-  { value: 'all', label: 'All Containers', desc: 'Queue every container in the system' },
-  { value: 'CRITICAL', label: 'Critical Risk', desc: 'Only containers flagged CRITICAL' },
-  { value: 'LOW_RISK', label: 'Low Risk', desc: 'Only containers flagged LOW_RISK' },
-  { value: 'CLEAR', label: 'Clear', desc: 'Only containers with CLEAR status' },
+  { value: 'all', label: 'All Containers', desc: 'Every container in the system', icon: Boxes, color: 'text-foreground' },
+  { value: 'CRITICAL', label: 'Critical Risk', desc: 'Flagged as high-risk — priority inspection', icon: ShieldAlert, color: 'text-red-500' },
+  { value: 'LOW_RISK', label: 'Low Risk', desc: 'Moderate risk — secondary review needed', icon: AlertTriangle, color: 'text-amber-500' },
+  { value: 'CLEAR', label: 'Clear', desc: 'Previously cleared — can be re-assessed', icon: ShieldCheck, color: 'text-emerald-500' },
 ];
 
 function NewJobDialog({ onClose }) {
@@ -46,107 +47,152 @@ function NewJobDialog({ onClose }) {
   const [jobName, setJobName] = useState(`Re-score ${today}`);
   const [scope, setScope] = useState('all');
 
-  const { data: containerCount } = useQuery({
-    queryKey: ['container-count', scope],
-    queryFn: async () => {
-      const params = new URLSearchParams({ page: '1', limit: '1' });
-      if (scope !== 'all') params.set('risk_level', scope);
-      const r = await api.get(`/containers?${params}`);
-      return r.data?.pagination?.total ?? r.data?.total ?? 0;
-    },
+  // Fetch container counts for all scopes in parallel
+  const scopeCountQueries = useQueries({
+    queries: SCOPES.map(s => ({
+      queryKey: ['container-count', s.value],
+      queryFn: async () => {
+        const params = new URLSearchParams({ page: '1', limit: '1' });
+        if (s.value !== 'all') params.set('risk_level', s.value);
+        const r = await api.get(`/containers?${params}`);
+        return r.data?.pagination?.total ?? r.data?.total ?? 0;
+      },
+      staleTime: 30_000,
+    })),
   });
 
+  const selectedIdx = SCOPES.findIndex(s => s.value === scope);
+  const selectedCount = scopeCountQueries[selectedIdx]?.data;
+  const isCountLoading = scopeCountQueries[selectedIdx]?.isPending;
+
   const createMutation = useMutation({
-    mutationFn: async ({ job_name, scope }) => {
-      const PAGE_LIMIT = 1000;
-      let page = 1;
-      const allIds = [];
-      while (true) {
-        const params = new URLSearchParams({ page: String(page), limit: String(PAGE_LIMIT) });
-        if (scope !== 'all') params.set('risk_level', scope);
-        const r = await api.get(`/containers?${params}`);
-        const containers = r.data?.containers ?? [];
-        allIds.push(...containers.map(c => c.id));
-        const total = r.data?.pagination?.total ?? r.data?.total ?? containers.length;
-        if (allIds.length >= total || containers.length < PAGE_LIMIT) break;
-        page++;
-      }
-      if (allIds.length === 0) throw new Error('No containers match the selected scope');
-      return api.post('/predictions/batch', { container_ids: allIds, job_name });
-    },
+    mutationFn: ({ job_name, scope }) =>
+      api.post('/predictions/batch', { scope, job_name }),
     onSuccess: () => {
       toast.success('Batch prediction queued!');
       qc.invalidateQueries({ queryKey: ['jobs'] });
       onClose();
     },
-    onError: (e) => toast.error(e.message ?? e.response?.data?.message ?? 'Failed to create job'),
+    onError: (e) => toast.error(e.response?.data?.message ?? e.message ?? 'Failed to create job'),
   });
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-sm"
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm"
       onClick={onClose}>
-      <div className="bg-card rounded-xl border border-border shadow-2xl w-full max-w-md mx-4 p-6 space-y-5"
+      <motion.div
+        initial={{ opacity: 0, scale: 0.96, y: 10 }}
+        animate={{ opacity: 1, scale: 1, y: 0 }}
+        transition={{ duration: 0.18, ease: 'easeOut' }}
+        className="bg-card rounded-2xl border border-border shadow-2xl w-full max-w-lg mx-4 overflow-hidden"
         onClick={e => e.stopPropagation()}>
-        <div className="flex items-center justify-between">
-          <div className="flex items-center gap-2">
-            <Boxes className="w-4 h-4 text-primary" />
-            <h2 className="text-base font-semibold">New Batch Prediction</h2>
+
+        {/* Header */}
+        <div className="flex items-center justify-between px-6 pt-6 pb-4 border-b border-border">
+          <div className="flex items-center gap-3">
+            <div className="w-9 h-9 rounded-xl bg-primary/10 flex items-center justify-center shrink-0">
+              <Boxes className="w-4 h-4 text-primary" />
+            </div>
+            <div>
+              <h2 className="text-base font-semibold leading-tight">Create Batch Prediction</h2>
+              <p className="text-xs text-muted-foreground mt-0.5">Queue containers for ML risk scoring</p>
+            </div>
           </div>
-          <button onClick={onClose} className="p-1.5 rounded-md hover:bg-muted transition-colors">
+          <button onClick={onClose} className="p-1.5 rounded-lg hover:bg-muted transition-colors ml-2 shrink-0">
             <X className="w-4 h-4" />
           </button>
         </div>
 
-        <div className="space-y-1.5">
-          <label className="text-xs font-medium">Job Name</label>
-          <input
-            value={jobName}
-            onChange={e => setJobName(e.target.value)}
-            className="w-full h-9 rounded-md border border-input bg-background px-3 text-sm focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-1 transition-shadow"
-          />
-        </div>
+        <div className="px-6 py-5 space-y-6">
+          {/* Job Name */}
+          <div className="space-y-2">
+            <label className="text-sm font-medium">Job Name</label>
+            <input
+              value={jobName}
+              onChange={e => setJobName(e.target.value)}
+              placeholder="e.g. Weekly re-score"
+              className="w-full h-10 rounded-xl border border-input bg-background px-4 text-sm focus:outline-none focus:ring-2 focus:ring-ring transition-shadow"
+            />
+          </div>
 
-        <div className="space-y-2">
-          <label className="text-xs font-medium">Container Scope</label>
-          {SCOPES.map(s => (
-            <label key={s.value}
-              className={`flex items-start gap-3 p-3 rounded-lg border cursor-pointer transition-colors ${scope === s.value ? 'border-primary bg-primary/5' : 'border-border hover:border-primary/40'}`}>
-              <input type="radio" name="scope" value={s.value} checked={scope === s.value}
-                onChange={() => setScope(s.value)} className="mt-0.5 accent-primary" />
-              <div className="flex-1 min-w-0">
-                <p className="text-sm font-medium">{s.label}</p>
-                <p className="text-xs text-muted-foreground">{s.desc}</p>
+          {/* Container Scope */}
+          <div className="space-y-3">
+            <label className="text-sm font-medium">Container Scope</label>
+            <div className="grid grid-cols-2 gap-2.5">
+              {SCOPES.map((s, i) => {
+                const count = scopeCountQueries[i].data;
+                const loadingCount = scopeCountQueries[i].isPending;
+                const isSelected = scope === s.value;
+                const Icon = s.icon;
+                return (
+                  <button
+                    key={s.value}
+                    type="button"
+                    onClick={() => setScope(s.value)}
+                    className={`relative text-left rounded-xl border p-4 transition-all duration-150 ${
+                      isSelected
+                        ? 'border-primary bg-primary/5 shadow-sm ring-1 ring-primary/20'
+                        : 'border-border hover:border-primary/40 hover:bg-muted/40'
+                    }`}>
+                    <div className="flex items-start justify-between gap-1 mb-1.5">
+                      <div className="flex items-center gap-1.5 min-w-0">
+                        <Icon className={`w-3.5 h-3.5 shrink-0 ${s.color}`} />
+                        <p className="text-sm font-semibold leading-tight truncate">{s.label}</p>
+                      </div>
+                      {isSelected && (
+                        <div className="w-4 h-4 rounded-full bg-primary flex items-center justify-center shrink-0">
+                          <div className="w-1.5 h-1.5 rounded-full bg-white" />
+                        </div>
+                      )}
+                    </div>
+                    <p className="text-xs text-muted-foreground mb-3 leading-snug">{s.desc}</p>
+                    {loadingCount ? (
+                      <div className="h-4 w-16 bg-muted animate-pulse rounded" />
+                    ) : (
+                      <p className={`text-xs font-bold tabular-nums ${count === 0 ? 'text-muted-foreground' : 'text-foreground'}`}>
+                        {count?.toLocaleString() ?? '—'}
+                        <span className="font-normal text-muted-foreground"> containers</span>
+                      </p>
+                    )}
+                  </button>
+                );
+              })}
+            </div>
+          </div>
+
+          {/* Empty state warning */}
+          {selectedCount === 0 && !isCountLoading && (
+            <div className="flex items-start gap-3 p-3.5 bg-amber-500/10 border border-amber-500/25 rounded-xl">
+              <AlertTriangle className="w-4 h-4 text-amber-600 shrink-0 mt-0.5" />
+              <div>
+                <p className="text-sm font-medium text-amber-700 dark:text-amber-400">No containers available</p>
+                <p className="text-xs text-amber-600/80 dark:text-amber-500/80 mt-0.5">
+                  No containers match this scope. Upload a dataset first.
+                </p>
               </div>
-              {scope === s.value && containerCount !== undefined && (
-                <span className="text-xs font-mono text-muted-foreground shrink-0 mt-0.5">
-                  {containerCount.toLocaleString()} containers
-                </span>
-              )}
-            </label>
-          ))}
+            </div>
+          )}
         </div>
 
-        {containerCount === 0 && (
-          <p className="text-xs text-amber-600 bg-amber-500/10 border border-amber-500/20 rounded-md px-3 py-2">
-            No containers match this scope. Upload a CSV first.
-          </p>
-        )}
-
-        <div className="flex gap-2 pt-1">
-          <button onClick={onClose}
-            className="flex-1 h-9 rounded-md border border-border text-sm hover:bg-muted transition-colors">
+        {/* Footer */}
+        <div className="flex items-center justify-end gap-3 px-6 py-4 border-t border-border bg-muted/20">
+          <button
+            type="button"
+            onClick={onClose}
+            disabled={createMutation.isPending}
+            className="h-9 px-5 rounded-xl border border-border text-sm hover:bg-muted transition-colors disabled:opacity-50">
             Cancel
           </button>
           <button
+            type="button"
             onClick={() => createMutation.mutate({ job_name: jobName, scope })}
-            disabled={createMutation.isPending || !jobName.trim() || containerCount === 0}
-            className="flex-1 h-9 rounded-md bg-primary text-primary-foreground text-sm font-medium hover:bg-primary/90 disabled:opacity-60 flex items-center justify-center gap-2 transition-colors">
+            disabled={createMutation.isPending || !jobName.trim() || selectedCount === 0}
+            className="h-9 px-5 rounded-xl bg-primary text-primary-foreground text-sm font-medium hover:bg-primary/90 disabled:opacity-50 flex items-center gap-2 transition-colors">
             {createMutation.isPending
               ? <><Loader2 className="w-3.5 h-3.5 animate-spin" /> Queuing…</>
               : <><Plus className="w-3.5 h-3.5" /> Queue Prediction</>}
           </button>
         </div>
-      </div>
+      </motion.div>
     </div>
   );
 }
@@ -297,14 +343,14 @@ export default function Jobs() {
       </div>
 
       {/* Table */}
-      <div className="rounded-lg border border-border bg-card overflow-hidden">
+      <div className="rounded-xl border border-border bg-card overflow-hidden">
         <table className="w-full text-sm">
           <thead>
             <tr className="border-b border-border bg-muted/30">
               <th className="text-left px-4 py-3 text-xs font-medium text-muted-foreground">Job Name</th>
               <th className="text-left px-4 py-3 text-xs font-medium text-muted-foreground">Status</th>
-              <th className="text-left px-4 py-3 text-xs font-medium text-muted-foreground">Progress</th>
-              <th className="text-left px-4 py-3 text-xs font-medium text-muted-foreground">Containers</th>
+              <th className="text-left px-4 py-3 text-xs font-medium text-muted-foreground w-52">Progress</th>
+              <th className="text-left px-4 py-3 text-xs font-medium text-muted-foreground">Total</th>
               <th className="text-left px-4 py-3 text-xs font-medium text-muted-foreground">Created</th>
               <th className="text-right px-4 py-3 text-xs font-medium text-muted-foreground">Actions</th>
             </tr>
@@ -312,49 +358,59 @@ export default function Jobs() {
           <tbody className="divide-y divide-border">
             {isLoading ? (
               Array(4).fill(0).map((_, i) => (
-                <tr key={i}>
+                <tr key={i} className="border-b border-border last:border-0">
                   {Array(6).fill(0).map((__, j) => (
-                    <td key={j} className="px-4 py-3">
-                      <div className="h-4 bg-muted rounded animate-pulse" />
+                    <td key={j} className="px-4 py-4">
+                      <div className="h-4 bg-muted rounded animate-pulse" style={{ width: j === 0 ? '70%' : j === 2 ? '90%' : '60%' }} />
                     </td>
                   ))}
                 </tr>
               ))
             ) : jobs.length === 0 ? (
               <tr>
-                <td colSpan={6} className="text-center text-muted-foreground text-sm py-16">
-                  <Boxes className="w-8 h-8 mx-auto mb-2 text-muted-foreground/40" />
-                  No batch jobs yet — upload a CSV or click <strong>New Batch Prediction</strong> above.
+                <td colSpan={6} className="text-center py-20">
+                  <div className="flex flex-col items-center gap-3">
+                    <div className="w-12 h-12 rounded-2xl bg-muted flex items-center justify-center">
+                      <Boxes className="w-6 h-6 text-muted-foreground/50" />
+                    </div>
+                    <div>
+                      <p className="text-sm font-medium text-foreground">No batch jobs yet</p>
+                      <p className="text-xs text-muted-foreground mt-1">Upload a CSV or click <strong>New Batch Prediction</strong> to get started.</p>
+                    </div>
+                  </div>
                 </td>
               </tr>
             ) : jobs.map((job) => (
               <tr key={job.id}
-                className="hover:bg-muted/30 cursor-pointer transition-colors"
+                className="hover:bg-muted/30 cursor-pointer transition-colors border-b border-border last:border-0"
                 onClick={() => setSelected(job)}>
-                <td className="px-4 py-3">
-                  <p className="font-medium text-sm">{job.name ?? `Job ${job.id.slice(0, 8)}`}</p>
-                  <p className="text-xs text-muted-foreground font-mono">{job.id.slice(0, 12)}…</p>
+                <td className="px-4 py-3.5">
+                  <p className="font-semibold text-sm leading-tight">{job.name ?? `Job ${job.id.slice(0, 8)}`}</p>
+                  <p className="text-xs text-muted-foreground font-mono mt-0.5">{job.id.slice(0, 12)}…</p>
                 </td>
-                <td className="px-4 py-3"><StatusBadge status={job.status} /></td>
-                <td className="px-4 py-3">
-                  <div className="flex items-center gap-2">
-                    <ProgressBar pct={
-                      job.status === 'COMPLETED' ? 100
-                        : job.progress !== undefined ? job.progress
-                          : job.total_containers > 0
-                            ? Math.round(((job.processed_count ?? 0) / job.total_containers) * 100)
-                            : 0
-                    } />
+                <td className="px-4 py-3.5"><StatusBadge status={job.status} /></td>
+                <td className="px-4 py-3.5">
+                  <div className="space-y-1.5">
+                    <ProgressBar
+                      className="w-full h-2"
+                      pct={
+                        job.status === 'COMPLETED' ? 100
+                          : job.progress !== undefined ? job.progress
+                            : job.total_containers > 0
+                              ? Math.round(((job.processed_count ?? 0) / job.total_containers) * 100)
+                              : 0
+                      }
+                    />
                     <span className="text-xs text-muted-foreground tabular-nums">
-                      {job.processed_count ?? 0}/{job.total_containers ?? '?'}
+                      {job.processed_count ?? 0} / {job.total_containers ?? '?'} processed
                     </span>
                   </div>
                 </td>
-                <td className="px-4 py-3 text-sm tabular-nums">{job.total_containers ?? '—'}</td>
-                <td className="px-4 py-3 text-xs text-muted-foreground">
+                <td className="px-4 py-3.5 text-sm tabular-nums font-medium">{job.total_containers ?? '—'}</td>
+                <td className="px-4 py-3.5 text-xs text-muted-foreground whitespace-nowrap">
                   {new Date(job.created_at).toLocaleString()}
                 </td>
-                <td className="px-4 py-3 text-right" onClick={e => e.stopPropagation()}>
+                <td className="px-4 py-3.5 text-right" onClick={e => e.stopPropagation()}>
                   <div className="flex items-center justify-end gap-2">
                     {job.status === 'COMPLETED' && (
                       <button onClick={() => handleDownload(job)}

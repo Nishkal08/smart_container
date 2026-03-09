@@ -10,6 +10,7 @@ async function predictSingle(req, res) {
 async function predictBatch(req, res) {
   const batchJob = await predictionService.queueBatchPrediction({
     container_ids: req.body.container_ids,
+    scope: req.body.scope,
     job_name: req.body.job_name,
     createdBy: req.user.userId,
     isAdmin: req.user.role === 'ADMIN',

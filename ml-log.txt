@@ -17183,3 +17183,5 @@ INFO:     127.0.0.1:56544 - "POST /predict/single HTTP/1.1" 200 OK
 INFO:     127.0.0.1:56547 - "POST /predict/single HTTP/1.1" 200 OK
 INFO:     127.0.0.1:56541 - "POST /predict/single HTTP/1.1" 200 OK
 INFO:     127.0.0.1:63811 - "GET /health HTTP/1.1" 200 OK
+INFO:     127.0.0.1:55377 - "GET /health HTTP/1.1" 200 OK
+INFO:     127.0.0.1:51652 - "GET /health HTTP/1.1" 200 OK

@@ -6,50 +6,54 @@
 
 @layer base {
   :root {
-    --background: 240 20% 98%;
-    --foreground: 240 10% 15%;
+    /* Momentum-inspired: warm off-white + orange accent */
+    --background: 30 20% 97%;
+    --foreground: 20 15% 12%;
     --card: 0 0% 100%;
-    --card-foreground: 240 10% 15%;
+    --card-foreground: 20 15% 12%;
     --popover: 0 0% 100%;
-    --popover-foreground: 240 10% 15%;
-    --primary: 262 83% 58%;
+    --popover-foreground: 20 15% 12%;
+    --primary: 21 91% 51%;          /* Momentum orange: #f36c1a */
     --primary-foreground: 0 0% 100%;
-    --secondary: 240 5% 96%;
-    --secondary-foreground: 240 6% 10%;
-    --muted: 240 5% 96%;
-    --muted-foreground: 240 4% 46%;
-    --accent: 262 83% 96%;
-    --accent-foreground: 262 83% 40%;
+    --secondary: 30 15% 94%;
+    --secondary-foreground: 20 15% 20%;
+    --muted: 30 10% 94%;
+    --muted-foreground: 20 8% 46%;
+    --accent: 21 91% 95%;
+    --accent-foreground: 21 91% 35%;
     --destructive: 0 84% 60%;
     --destructive-foreground: 0 0% 98%;
-    --border: 240 6% 90%;
-    --input: 240 6% 90%;
-    --ring: 262 83% 58%;
-    --sidebar: 240 5% 98%;
-    --radius: 0.75rem;
+    --border: 30 12% 88%;
+    --input: 30 12% 88%;
+    --ring: 21 91% 51%;
+    --sidebar: 0 0% 100%;
+    --sidebar-border: 30 12% 90%;
+    --radius: 0.875rem;
   }
   .dark {
-    --background: 240 10% 4%;
-    --foreground: 0 0% 98%;
-    --card: 240 10% 6%;
-    --card-foreground: 0 0% 98%;
-    --popover: 240 10% 6%;
-    --popover-foreground: 0 0% 98%;
-    --primary: 262 83% 65%;
+    /* Momentum dark: deep warm brown-black */
+    --background: 20 12% 7%;
+    --foreground: 30 15% 92%;
+    --card: 20 10% 10%;
+    --card-foreground: 30 15% 92%;
+    --popover: 20 10% 10%;
+    --popover-foreground: 30 15% 92%;
+    --primary: 21 91% 55%;
     --primary-foreground: 0 0% 100%;
-    --secondary: 240 4% 16%;
-    --secondary-foreground: 0 0% 98%;
-    --muted: 240 4% 14%;
-    --muted-foreground: 240 5% 65%;
-    --accent: 262 83% 16%;
-    --accent-foreground: 262 83% 85%;
-    --destructive: 0 62% 30%;
+    --secondary: 20 8% 16%;
+    --secondary-foreground: 30 15% 85%;
+    --muted: 20 8% 14%;
+    --muted-foreground: 30 8% 55%;
+    --accent: 21 60% 18%;
+    --accent-foreground: 21 91% 75%;
+    --destructive: 0 62% 45%;
     --destructive-foreground: 0 0% 98%;
-    --border: 240 4% 16%;
-    --input: 240 4% 16%;
-    --ring: 262 83% 65%;
-    --sidebar: 240 10% 3%;
-    --radius: 0.75rem;
+    --border: 20 8% 18%;
+    --input: 20 8% 18%;
+    --ring: 21 91% 55%;
+    --sidebar: 20 12% 6%;
+    --sidebar-border: 20 8% 14%;
+    --radius: 0.875rem;
   }
 }
 
@@ -73,4 +77,15 @@
 @layer utilities {
   .tabular-nums { font-variant-numeric: tabular-nums; }
   .bg-sidebar { background-color: hsl(var(--sidebar)); }
+  /* Momentum hatching pattern for chart bars */
+  .hatch-pattern {
+    background-image: repeating-linear-gradient(
+      45deg,
+      transparent,
+      transparent 3px,
+      currentColor 3px,
+      currentColor 4px
+    );
+    opacity: 0.35;
+  }
 }

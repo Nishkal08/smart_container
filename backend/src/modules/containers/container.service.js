@@ -5,7 +5,7 @@ async function listContainers({ page, limit, origin_country, risk_level, trade_r
   const skip = (page - 1) * limit;
 
   // Build dynamic where clause
-  const where = {};
+  const where = { deleted_at: null };
 
   if (origin_country) where.origin_country = origin_country.toUpperCase();
   if (trade_regime) where.trade_regime = trade_regime;
@@ -16,12 +16,9 @@ async function listContainers({ page, limit, origin_country, risk_level, trade_r
     if (date_to) where.declaration_date.lte = date_to;
   }
 
-  // Build AND conditions for ownership + search (both use OR internally, so must be combined via AND)
+  // Build AND conditions for search only — all authenticated users can read all containers.
+  // Ownership only restricts edits and deletes, not reads.
   const andConditions = [];
-  if (!isAdmin && userId) {
-    // Show containers owned by this user OR containers with no owner (legacy/shared data)
-    andConditions.push({ OR: [{ uploaded_by: userId }, { uploaded_by: null }] });
-  }
   if (search) {
     andConditions.push({
       OR: [
@@ -83,11 +80,8 @@ async function listContainers({ page, limit, origin_country, risk_level, trade_r
 }
 
 async function getContainerById(id, userId, isAdmin) {
-  const ownerCond = (!isAdmin && userId)
-    ? [{ OR: [{ uploaded_by: userId }, { uploaded_by: null }] }]
-    : [];
   const container = await prisma.container.findFirst({
-    where: { AND: [{ OR: [{ id }, { container_id: id }] }, ...ownerCond] },
+    where: { AND: [{ OR: [{ id }, { container_id: id }] }] },
     include: {
       predictions: {
         orderBy: { created_at: 'desc' },
@@ -161,11 +155,8 @@ async function bulkUpsertContainers(containers, uploadedById) {
 
 async function updateContainer(id, data, userId, isAdmin) {
   // Allow lookup by DB UUID or container_id string
-  const ownerCond = (!isAdmin && userId)
-    ? [{ OR: [{ uploaded_by: userId }, { uploaded_by: null }] }]
-    : [];
   const existing = await prisma.container.findFirst({
-    where: { AND: [{ OR: [{ id }, { container_id: id }] }, { deleted_at: null }, ...ownerCond] },
+    where: { AND: [{ OR: [{ id }, { container_id: id }] }, { deleted_at: null }] },
   });
   if (!existing) return null;
 

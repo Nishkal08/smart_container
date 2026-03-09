@@ -358,9 +358,9 @@ def _infer_real(container: ContainerInput) -> PredictionResult:
 
     risk_score = float(np.clip(50 * probs[1] + 100 * probs[2], 0, 100))
 
-    if risk_score < 30:
+    if risk_score < settings.CLEAR_THRESHOLD:
         risk_level = RiskLevel.CLEAR
-    elif risk_score < 55:
+    elif risk_score < settings.LOW_RISK_THRESHOLD:
         risk_level = RiskLevel.LOW_RISK
     else:
         risk_level = RiskLevel.CRITICAL

@@ -1,51 +1,68 @@
 ﻿import { useLocation } from 'react-router-dom';
-import { Sun, Moon } from 'lucide-react';
+import { Sun, Moon, Bell, Search, CalendarDays } from 'lucide-react';
 import { useThemeStore } from '../../store/themeStore';
 import { useAuthStore } from '../../store/authStore';
-
-const PAGE_TITLES = {
-  '/':            { title: 'Operations Center', subtitle: 'Live risk overview across all monitored containers' },
-  '/containers':  { title: 'Containers',        subtitle: 'Browse, filter, and inspect container shipments' },
-  '/predictions': { title: 'Predictions',       subtitle: 'ML risk scores and anomaly analysis' },
-  '/insights':    { title: 'Analytics',         subtitle: 'Long-term risk trends and trade intelligence' },
-  '/jobs':        { title: 'Batch Jobs',        subtitle: 'Monitor and manage prediction job queue' },
-  '/upload':      { title: 'Upload Dataset',    subtitle: 'Import container manifests via CSV' },
-  '/admin':       { title: 'Admin',             subtitle: 'Users, system stats and cache management' },
-};
+import { useState } from 'react';
 
 export default function TopNav() {
   const location = useLocation();
   const { theme, toggleTheme } = useThemeStore();
   const user = useAuthStore(s => s.user);
+  const [searchFocused, setSearchFocused] = useState(false);
 
-  // Match dynamic routes
-  const pathBase = '/' + (location.pathname.split('/')[1] || '');
-  const page = PAGE_TITLES[location.pathname] ?? PAGE_TITLES[pathBase] ?? { title: 'Overview', subtitle: '' };
   const initials = user?.name
     ? user.name.split(' ').map(w => w[0]).join('').slice(0, 2).toUpperCase()
     : '?';
 
+  const now = new Date();
+  const monthLabel = now.toLocaleString('default', { month: 'long', year: 'numeric' });
+
   return (
-    <header className="flex h-14 shrink-0 items-center justify-between border-b border-border px-6 bg-background">
-      <div>
-        <h1 className="text-sm font-semibold">{page.title}</h1>
-        <p className="text-xs text-muted-foreground hidden sm:block">{page.subtitle}</p>
+    <header className="flex h-14 shrink-0 items-center gap-3 border-b border-border px-4 md:px-6 bg-background">
+      {/* Search bar */}
+      <div className={`hidden sm:flex flex-1 max-w-xs items-center gap-2 rounded-xl border px-3 py-2 transition-all duration-200 ${
+        searchFocused ? 'border-primary/50 bg-card shadow-sm shadow-primary/10' : 'border-border bg-muted/40'
+      }`}>
+        <Search className="w-3.5 h-3.5 text-muted-foreground shrink-0" />
+        <input
+          type="text"
+          placeholder="Search containers, shippers..."
+          onFocus={() => setSearchFocused(true)}
+          onBlur={() => setSearchFocused(false)}
+          className="flex-1 bg-transparent text-xs font-medium outline-none placeholder:text-muted-foreground/60 text-foreground"
+        />
       </div>
 
-      <div className="flex items-center gap-1.5">
-        <button
-          onClick={toggleTheme}
-          className="w-8 h-8 rounded-md flex items-center justify-center text-muted-foreground hover:bg-accent hover:text-foreground transition-colors"
-          title="Toggle theme">
-          {theme === 'dark' ? <Sun className="w-4 h-4" /> : <Moon className="w-4 h-4" />}
+      <div className="flex-1 sm:flex-none" />
+
+      {/* Month pill — Momentum style */}
+      <button className="hidden md:flex items-center gap-2 rounded-xl border border-border bg-card px-3 py-1.5 text-xs font-semibold text-muted-foreground hover:border-primary/40 hover:text-foreground transition-all">
+        <CalendarDays className="w-3.5 h-3.5 text-primary" />
+        {monthLabel}
+      </button>
+
+      {/* Theme toggle */}
+      <button
+        onClick={toggleTheme}
+        className="w-8 h-8 rounded-xl flex items-center justify-center text-muted-foreground hover:bg-accent hover:text-foreground transition-colors"
+        title="Toggle theme">
+        {theme === 'dark' ? <Sun className="w-4 h-4" /> : <Moon className="w-4 h-4" />}
+      </button>
+
+      {/* Notification bell */}
+      <div className="relative">
+        <button className="w-8 h-8 rounded-xl flex items-center justify-center text-muted-foreground hover:bg-accent hover:text-foreground transition-colors">
+          <Bell className="w-4 h-4" />
         </button>
-        <div className="w-px h-5 bg-border mx-1" />
-        <div className="flex items-center gap-2 text-xs">
-          <div className="w-7 h-7 rounded-full bg-primary/10 flex items-center justify-center">
-            <span className="text-[11px] font-bold text-primary">{initials}</span>
-          </div>
-          <span className="font-medium hidden sm:block">{user?.name ?? 'User'}</span>
+        <span className="absolute -top-0.5 -right-0.5 w-4 h-4 rounded-full bg-primary text-[9px] font-bold text-primary-foreground flex items-center justify-center shadow-sm">5</span>
+      </div>
+
+      {/* Avatar */}
+      <div className="flex items-center gap-2">
+        <div className="w-8 h-8 rounded-full bg-primary flex items-center justify-center shadow shadow-primary/30 cursor-pointer">
+          <span className="text-[11px] font-bold text-primary-foreground">{initials}</span>
         </div>
+        <span className="hidden lg:block text-xs font-semibold">{user?.name?.split(' ')[0] ?? 'User'}</span>
       </div>
     </header>
   );

@@ -67,10 +67,7 @@ async function retryJob(jobId, userId, isAdmin) {
   // Get containers linked to original batch via any existing prediction OR by matching total count
   // Simplest: re-fetch all containers created_by the job owner that need scoring
   const allJobContainers = await prisma.container.findMany({
-    where: {
-      deleted_at: null,
-      ...(isAdmin ? {} : { OR: [{ uploaded_by: userId }, { uploaded_by: null }] }),
-    },
+    where: { deleted_at: null },
     select: { id: true, container_id: true },
   });
 

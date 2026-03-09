@@ -1,13 +1,8 @@
 const prisma = require('../../config/db');
 
 async function getSummary({ userId, isAdmin } = {}) {
-  const ownerCond = (!isAdmin && userId)
-    ? { OR: [{ uploaded_by: userId }, { uploaded_by: null }] }
-    : {};
-  const containerBase = { deleted_at: null, ...ownerCond };
-  const predBase = (!isAdmin && userId)
-    ? { container: { OR: [{ uploaded_by: userId }, { uploaded_by: null }] } }
-    : {};
+  const containerBase = { deleted_at: null };
+  const predBase = {};
 
   const [
     totalContainers,
@@ -64,9 +59,7 @@ async function getSummary({ userId, isAdmin } = {}) {
 }
 
 async function getRiskDistribution({ userId, isAdmin } = {}) {
-  const where = (!isAdmin && userId)
-    ? { container: { OR: [{ uploaded_by: userId }, { uploaded_by: null }] } }
-    : {};
+  const where = {};
   const dist = await prisma.prediction.groupBy({
     by: ['risk_level'],
     where,
@@ -86,9 +79,6 @@ async function getTrends({ period = '30d', userId, isAdmin } = {}) {
   since.setDate(since.getDate() - days);
 
   const predWhere = { created_at: { gte: since } };
-  if (!isAdmin && userId) {
-    predWhere.container = { OR: [{ uploaded_by: userId }, { uploaded_by: null }] };
-  }
 
   const predictions = await prisma.prediction.findMany({
     where: predWhere,
@@ -111,21 +101,6 @@ async function getTopRiskyShippers({ type = 'importer', limit = 10, userId, isAd
   const field = type === 'exporter' ? 'exporter_id' : 'importer_id';
   const limitInt = parseInt(limit, 10);
 
-  if (isAdmin) {
-    return prisma.$queryRawUnsafe(`
-      SELECT c.${field} AS shipper_id,
-             COUNT(p.id)::int AS total_shipments,
-             ROUND(AVG(p.risk_score)::numeric, 1) AS avg_risk_score,
-             COUNT(CASE WHEN p.risk_level = 'CRITICAL' THEN 1 END)::int AS critical_count
-      FROM predictions p
-      JOIN containers c ON p.container_id = c.id
-      WHERE c.deleted_at IS NULL
-      GROUP BY c.${field}
-      ORDER BY avg_risk_score DESC, critical_count DESC
-      LIMIT ${limitInt}
-    `);
-  }
-
   return prisma.$queryRawUnsafe(`
     SELECT c.${field} AS shipper_id,
            COUNT(p.id)::int AS total_shipments,
@@ -133,28 +108,14 @@ async function getTopRiskyShippers({ type = 'importer', limit = 10, userId, isAd
            COUNT(CASE WHEN p.risk_level = 'CRITICAL' THEN 1 END)::int AS critical_count
     FROM predictions p
     JOIN containers c ON p.container_id = c.id
-    WHERE c.deleted_at IS NULL AND (c.uploaded_by = $1 OR c.uploaded_by IS NULL)
+    WHERE c.deleted_at IS NULL
     GROUP BY c.${field}
     ORDER BY avg_risk_score DESC, critical_count DESC
     LIMIT ${limitInt}
-  `, userId);
+  `);
 }
 
 async function getCountryRisk({ userId, isAdmin } = {}) {
-  if (isAdmin) {
-    return prisma.$queryRaw`
-      SELECT c.origin_country AS country,
-             COUNT(p.id)::int AS total,
-             ROUND(AVG(p.risk_score)::numeric, 1) AS avg_risk_score,
-             COUNT(CASE WHEN p.risk_level = 'CRITICAL' THEN 1 END)::int AS critical_count,
-             COUNT(CASE WHEN p.risk_level = 'LOW_RISK' THEN 1 END)::int AS low_risk_count
-      FROM predictions p
-      JOIN containers c ON p.container_id = c.id
-      WHERE c.deleted_at IS NULL
-      GROUP BY c.origin_country
-      ORDER BY avg_risk_score DESC
-    `;
-  }
   return prisma.$queryRaw`
     SELECT c.origin_country AS country,
            COUNT(p.id)::int AS total,
@@ -163,16 +124,14 @@ async function getCountryRisk({ userId, isAdmin } = {}) {
            COUNT(CASE WHEN p.risk_level = 'LOW_RISK' THEN 1 END)::int AS low_risk_count
     FROM predictions p
     JOIN containers c ON p.container_id = c.id
-    WHERE c.deleted_at IS NULL AND (c.uploaded_by = ${userId} OR c.uploaded_by IS NULL)
+    WHERE c.deleted_at IS NULL
     GROUP BY c.origin_country
     ORDER BY avg_risk_score DESC
   `;
 }
 
 async function getValueWeightScatter({ userId, isAdmin } = {}) {
-  const where = (!isAdmin && userId)
-    ? { container: { OR: [{ uploaded_by: userId }, { uploaded_by: null }] } }
-    : {};
+  const where = {};
   const predictions = await prisma.prediction.findMany({
     take: 500,
     orderBy: { created_at: 'desc' },
@@ -200,9 +159,7 @@ async function getValueWeightScatter({ userId, isAdmin } = {}) {
 }
 
 async function getAnomalyFrequency({ userId, isAdmin } = {}) {
-  const where = (!isAdmin && userId)
-    ? { container: { OR: [{ uploaded_by: userId }, { uploaded_by: null }] } }
-    : {};
+  const where = {};
   const predictions = await prisma.prediction.findMany({
     select: { anomalies: true },
     where,
@@ -239,25 +196,12 @@ async function getAnomalyFrequency({ userId, isAdmin } = {}) {
 }
 
 async function getTradeRoutes({ userId, isAdmin } = {}) {
-  if (isAdmin) {
-    return prisma.$queryRaw`
-      SELECT origin_country AS origin,
-             destination_country AS destination,
-             COUNT(*)::int AS count
-      FROM containers
-      WHERE deleted_at IS NULL AND origin_country != '' AND destination_country != ''
-      GROUP BY origin_country, destination_country
-      ORDER BY count DESC
-      LIMIT 50
-    `;
-  }
   return prisma.$queryRaw`
     SELECT origin_country AS origin,
            destination_country AS destination,
            COUNT(*)::int AS count
     FROM containers
     WHERE deleted_at IS NULL AND origin_country != '' AND destination_country != ''
-      AND (uploaded_by = ${userId} OR uploaded_by IS NULL)
     GROUP BY origin_country, destination_country
     ORDER BY count DESC
     LIMIT 50

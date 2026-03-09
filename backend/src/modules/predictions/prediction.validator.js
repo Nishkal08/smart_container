@@ -5,9 +5,13 @@ const singlePredictSchema = z.object({
 });
 
 const batchPredictSchema = z.object({
-  container_ids: z.array(z.string().min(1)).min(1, 'At least one container_id required').max(5000),
+  container_ids: z.array(z.string().min(1)).min(1).max(5000).optional(),
+  scope: z.enum(['all', 'CRITICAL', 'LOW_RISK', 'CLEAR']).optional(),
   job_name: z.string().optional(),
-});
+}).refine(
+  (d) => d.container_ids !== undefined || d.scope !== undefined,
+  { message: 'Either container_ids or scope must be provided' },
+);
 
 const listPredictionsQuerySchema = z.object({
   page: z.coerce.number().int().positive().optional().default(1),
