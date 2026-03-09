@@ -18,7 +18,7 @@ export default function TopNav() {
   const monthLabel = now.toLocaleString('default', { month: 'long', year: 'numeric' });
 
   return (
-    <header className="flex shrink-0 items-center gap-3 rounded-xl bg-background border border-border px-4 py-2.5 shadow-sm">
+    <header className="flex shrink-0 items-center gap-3 rounded-xl glass-card px-4 py-2.5">
       {/* Search bar */}
       <div className={`hidden sm:flex flex-1 max-w-xs items-center gap-2 rounded-xl border px-3 py-2 transition-all duration-200 ${
         searchFocused ? 'border-primary/50 bg-card shadow-sm shadow-primary/10' : 'border-border bg-muted/40'

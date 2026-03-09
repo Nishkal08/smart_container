@@ -14,13 +14,28 @@ const MOBILE_NAV = [
 
 export default function MainLayout() {
   return (
-    <div className="flex h-screen w-full bg-background overflow-hidden p-3 gap-3">
+    <div className="relative isolate flex h-screen w-full bg-background overflow-hidden p-3 gap-3">
+      {/* ── Momentum-style gradient orbs (behind everything via z-[-1]) ── */}
+      <div
+        className="absolute z-[-1] orb-pulse pointer-events-none"
+        style={{
+          top: '-35%', right: '-20%', width: '80%', height: '95%',
+          background: 'radial-gradient(ellipse at center, hsl(var(--primary) / 0.24) 0%, transparent 65%)',
+        }}
+      />
+      <div
+        className="absolute z-[-1] orb-pulse-slow pointer-events-none"
+        style={{
+          bottom: '-30%', left: '0%', width: '60%', height: '75%',
+          background: 'radial-gradient(ellipse at center, hsl(var(--primary) / 0.10) 0%, transparent 65%)',
+        }}
+      />
       <Sidebar />
       {/* Right column — TopNav floats above the content card */}
       <div className="flex flex-col flex-1 min-w-0 overflow-hidden gap-3">
         <TopNav />
         {/* Main content card */}
-        <div className="flex-1 overflow-hidden rounded-2xl bg-card border border-border relative">
+        <div className="flex-1 overflow-hidden rounded-2xl glass-card relative">
           <main className="h-full overflow-y-auto relative pb-16 md:pb-0">
             {/* Subtle warm noise background */}
             <div
@@ -30,8 +45,7 @@ export default function MainLayout() {
                 backgroundSize: '28px 28px',
               }}
             />
-            {/* Top-right ambient glow — orange tint */}
-            <div className="absolute top-0 right-0 w-[500px] h-[350px] bg-primary/8 rounded-full blur-3xl opacity-50 pointer-events-none -translate-y-1/3 translate-x-1/4" />
+
             <div className="px-4 md:px-6 py-5 max-w-[1400px] mx-auto relative z-10">
               <Outlet />
             </div>

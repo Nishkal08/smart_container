@@ -9,6 +9,8 @@ import api from '../../lib/api';
 import queryClient from '../../lib/queryClient';
 import { toast } from 'sonner';
 import { ContainerLogo } from '../ui/Logo';
+import { useState, useRef, useCallback } from 'react';
+import { AnimatePresence, motion } from 'framer-motion';
 
 const NAV_GENERAL = [
   { label: 'Dashboard',      to: '/',            icon: LayoutDashboard, roles: null },
@@ -51,6 +53,21 @@ export default function Sidebar() {
   const { user, logout } = useAuthStore();
   const navigate = useNavigate();
 
+  // Easter egg: click the logo 5× rapidly to reveal
+  const [shipSailing, setShipSailing] = useState(false);
+  const logoClicks = useRef(0);
+  const logoTimer = useRef(null);
+  const handleLogoClick = useCallback(() => {
+    logoClicks.current += 1;
+    if (logoTimer.current) clearTimeout(logoTimer.current);
+    logoTimer.current = setTimeout(() => { logoClicks.current = 0; }, 1500);
+    if (logoClicks.current >= 5) {
+      logoClicks.current = 0;
+      setShipSailing(true);
+      setTimeout(() => setShipSailing(false), 4800);
+    }
+  }, []);
+
   const handleLogout = async () => {
     try { await api.post('/auth/logout'); } catch (_) {}
     queryClient.clear();
@@ -66,9 +83,10 @@ export default function Sidebar() {
     : '?';
 
   return (
-    <aside className="hidden md:flex flex-col w-[220px] shrink-0 h-full bg-sidebar rounded-2xl overflow-hidden shadow-sm border border-[hsl(var(--sidebar-border))]">
+    <>
+    <aside className="hidden md:flex flex-col w-[220px] shrink-0 h-full glass-card rounded-2xl overflow-hidden">
       {/* Logo */}
-      <div className="flex items-center gap-3 h-16 px-5">
+      <div className="flex items-center gap-3 h-16 px-5 cursor-pointer select-none" onClick={handleLogoClick} title="SmartContainer">
         <div className="w-8 h-8 rounded-xl bg-primary flex items-center justify-center shrink-0 shadow-md shadow-primary/40">
           <ContainerLogo className="w-4 h-4 text-primary-foreground" />
         </div>
@@ -140,5 +158,24 @@ export default function Sidebar() {
         </button>
       </div>
     </aside>
+
+    {/* Easter egg — click logo 5× to sail a ship across the screen */}
+    <AnimatePresence>
+      {shipSailing && (
+        <motion.div
+          key="easter-ship"
+          initial={{ x: '-18vw', opacity: 0 }}
+          animate={{ x: '112vw', opacity: [0, 1, 1, 1, 0.8, 0] }}
+          transition={{ duration: 4.5, ease: 'linear' }}
+          className="fixed bottom-10 z-[9999] pointer-events-none select-none flex items-center gap-2"
+        >
+          <span className="text-3xl drop-shadow-xl" style={{ filter: 'drop-shadow(0 0 8px hsl(var(--primary)))' }}>&#x1F6A2;</span>
+          <span className="text-[11px] font-bold text-primary bg-background/90 backdrop-blur-sm px-2.5 py-1 rounded-xl border border-primary/30 shadow-lg whitespace-nowrap font-mono tracking-wide">
+            SC-EASTER-01 &middot; CLEARED &#x2713;
+          </span>
+        </motion.div>
+      )}
+    </AnimatePresence>
+    </>
   );
 }

@@ -44,7 +44,7 @@ function StatCard({ label, value, sub, icon: Icon, trend, trendUp }) {
     <motion.div
       variants={itemVariants}
       whileHover={{ y: -3, transition: { duration: 0.18 } }}
-      className="relative overflow-hidden rounded-2xl border border-border bg-card p-5 flex flex-col gap-3"
+      className="relative overflow-hidden rounded-2xl glass-card p-5 flex flex-col gap-3"
     >
       {/* Subtle orange glow top-right */}
       <div className="absolute -right-8 -top-8 w-28 h-28 rounded-full bg-primary/15 blur-2xl pointer-events-none" />
@@ -195,7 +195,7 @@ export default function Dashboard() {
     return (
       <motion.div variants={containerVariants} initial="hidden" animate="show" className="max-w-[1100px] mx-auto pb-16 px-1">
         {/* Hero */}
-        <motion.div variants={itemVariants} className="relative overflow-hidden rounded-3xl border border-border bg-card mt-2 mb-6 p-8 md:p-12">
+        <motion.div variants={itemVariants} className="relative overflow-hidden rounded-3xl glass-card mt-2 mb-6 p-8 md:p-12">
           <div className="absolute -top-20 -right-20 w-72 h-72 rounded-full bg-primary/20 blur-3xl pointer-events-none" />
           <div className="absolute -bottom-16 -left-16 w-56 h-56 rounded-full bg-primary/10 blur-3xl pointer-events-none" />
           <div className="relative z-10 max-w-xl">
@@ -223,7 +223,7 @@ export default function Dashboard() {
         <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
           {steps.map(({ step, icon: Icon, title, desc, action, color }) => (
             <motion.div key={step} variants={itemVariants} whileHover={{ y: -4 }}
-              className="rounded-2xl border border-border bg-card p-6 flex flex-col relative overflow-hidden">
+              className="rounded-2xl glass-card p-6 flex flex-col relative overflow-hidden">
               <div className="absolute -right-4 -top-4 w-20 h-20 rounded-full bg-primary/10 blur-2xl" />
               <div className="flex items-center justify-between mb-4 relative z-10">
                 <div className="w-10 h-10 rounded-2xl bg-primary/10 border border-primary/20 flex items-center justify-center">
@@ -300,7 +300,7 @@ export default function Dashboard() {
       <div className="grid grid-cols-1 xl:grid-cols-3 gap-5">
 
         {/* Left: Updates card (Momentum-inspired big stat) */}
-        <motion.div variants={itemVariants} className="xl:col-span-1 rounded-2xl border border-border bg-card p-5 flex flex-col gap-4 relative overflow-hidden">
+          <motion.div variants={itemVariants} className="xl:col-span-1 rounded-2xl glass-card p-5 flex flex-col gap-4 relative overflow-hidden">
           <div className="absolute -right-10 -top-10 w-40 h-40 rounded-full bg-primary/15 blur-3xl pointer-events-none" />
 
           <div className="flex items-center justify-between relative z-10">
@@ -361,7 +361,7 @@ export default function Dashboard() {
         <div className="xl:col-span-2 flex flex-col gap-5">
 
           {/* Trend Chart */}
-          <motion.div variants={itemVariants} className="rounded-2xl border border-border bg-card p-5 flex-1">
+          <motion.div variants={itemVariants} className="rounded-2xl glass-card p-5 flex-1">
             <div className="flex items-center justify-between mb-4">
               <div>
                 <h3 className="text-sm font-bold">Daily Risk Trend</h3>
@@ -406,7 +406,7 @@ export default function Dashboard() {
           </motion.div>
 
           {/* Daily Risk Distribution stacked bar */}
-          <motion.div variants={itemVariants} className="rounded-2xl border border-border bg-card p-5">
+          <motion.div variants={itemVariants} className="rounded-2xl glass-card p-5">
             <div className="flex items-center justify-between mb-4">
               <div>
                 <h3 className="text-sm font-bold">Daily Risk Distribution</h3>
@@ -427,7 +427,7 @@ export default function Dashboard() {
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-5">
 
         {/* Top Risk Origins */}
-        <motion.div variants={itemVariants} className="rounded-2xl border border-border bg-card overflow-hidden flex flex-col">
+          <motion.div variants={itemVariants} className="rounded-2xl glass-card overflow-hidden flex flex-col">
           <div className="flex items-center justify-between px-5 py-4 border-b border-border">
             <h3 className="text-sm font-bold flex items-center gap-2"><Globe className="w-4 h-4 text-primary" /> Top Risk Origins</h3>
           </div>
@@ -459,7 +459,7 @@ export default function Dashboard() {
         </motion.div>
 
         {/* High-Risk Shippers */}
-        <motion.div variants={itemVariants} className="rounded-2xl border border-border bg-card overflow-hidden flex flex-col">
+          <motion.div variants={itemVariants} className="rounded-2xl glass-card overflow-hidden flex flex-col">
           <div className="flex items-center justify-between px-5 py-4 border-b border-border">
             <h3 className="text-sm font-bold">High-Risk Shippers</h3>
             <Link to="/insights" className="text-[11px] font-bold text-primary hover:text-primary/80 flex items-center gap-1">
@@ -495,7 +495,7 @@ export default function Dashboard() {
         </motion.div>
 
         {/* Recent Predictions */}
-        <motion.div variants={itemVariants} className="rounded-2xl border border-border bg-card overflow-hidden flex flex-col">
+          <motion.div variants={itemVariants} className="rounded-2xl glass-card overflow-hidden flex flex-col">
           <div className="flex items-center justify-between px-5 py-4 border-b border-border">
             <h3 className="text-sm font-bold">Recent Predictions</h3>
             <Link to="/predictions" className="text-[11px] font-bold text-primary hover:text-primary/80 flex items-center gap-1">
