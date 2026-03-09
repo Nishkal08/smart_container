@@ -102,32 +102,35 @@ function RiskBar({ distribution }) {
   );
 }
 
-/* ─── Momentum Workload-style heatmap strip (uses risk score intensity) ─── */
-function WorkloadHeatmap({ data }) {
+/* ─── Daily Risk Distribution — stacked bar chart (last 14 days) ─── */
+function DailyRiskBars({ data }) {
   if (!data?.length) return (
-    <div className="flex items-center justify-center h-32 text-xs text-muted-foreground/50 font-medium">
+    <div className="flex items-center justify-center h-[140px] text-xs text-muted-foreground/50 font-medium">
       No data yet
     </div>
   );
 
-  const cols = data.slice(-21); // last 21 days
-  const max = Math.max(...cols.map(d => d.CRITICAL ?? 0), 1);
+  const days = data.slice(-14).map(d => ({
+    ...d,
+    label: new Date(d.date).toLocaleDateString('default', { month: 'short', day: 'numeric' }),
+  }));
 
   return (
-    <div className="grid gap-1" style={{ gridTemplateColumns: `repeat(${Math.min(cols.length, 21)}, 1fr)` }}>
-      {cols.map((d, i) => {
-        const intensity = (d.CRITICAL ?? 0) / max;
-        const opacity = 0.15 + intensity * 0.85;
-        return (
-          <div
-            key={i}
-            className="aspect-square rounded-md transition-all duration-300 hover:scale-125 cursor-default"
-            style={{ backgroundColor: `hsl(21 91% 51% / ${opacity})` }}
-            title={`${d.date}: ${d.CRITICAL ?? 0} critical`}
-          />
-        );
-      })}
-    </div>
+    <ResponsiveContainer width="100%" height={140}>
+      <BarChart data={days} margin={{ top: 0, right: 0, left: -28, bottom: 0 }} barSize={10} barCategoryGap="30%">
+        <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" vertical={false} />
+        <XAxis dataKey="label" tick={{ fontSize: 9, fill: 'hsl(var(--muted-foreground))' }}
+          axisLine={false} tickLine={false} dy={6} />
+        <YAxis tick={{ fontSize: 9, fill: 'hsl(var(--muted-foreground))' }} axisLine={false} tickLine={false} allowDecimals={false} />
+        <Tooltip
+          contentStyle={{ background: 'hsl(var(--card))', border: '1px solid hsl(var(--border))', borderRadius: 10, fontSize: 11 }}
+          cursor={{ fill: 'hsl(var(--muted)/0.3)' }}
+        />
+        <Bar dataKey="CRITICAL" name="Critical" stackId="a" fill="#ef4444" radius={[0, 0, 0, 0]} />
+        <Bar dataKey="LOW_RISK" name="Low Risk" stackId="a" fill="#f59e0b" radius={[0, 0, 0, 0]} />
+        <Bar dataKey="CLEAR" name="Clear" stackId="a" fill="#22c55e" radius={[4, 4, 0, 0]} />
+      </BarChart>
+    </ResponsiveContainer>
   );
 }
 
@@ -402,20 +405,20 @@ export default function Dashboard() {
             )}
           </motion.div>
 
-          {/* Weekly Workload heatmap — Momentum style */}
+          {/* Daily Risk Distribution stacked bar */}
           <motion.div variants={itemVariants} className="rounded-2xl border border-border bg-card p-5">
             <div className="flex items-center justify-between mb-4">
               <div>
-                <h3 className="text-sm font-bold">Critical Activity Heatmap</h3>
-                <p className="text-xs text-muted-foreground">Intensity of critical flags per day</p>
+                <h3 className="text-sm font-bold">Daily Risk Distribution</h3>
+                <p className="text-xs text-muted-foreground">Stacked breakdown per day — last 14 days</p>
               </div>
-              <div className="flex items-center gap-1.5 text-[10px] font-semibold text-muted-foreground">
-                <span className="w-2.5 h-2.5 rounded-sm bg-primary/20" /> Low
-                <span className="w-2.5 h-2.5 rounded-sm bg-primary/60 ml-1" /> Med
-                <span className="w-2.5 h-2.5 rounded-sm bg-primary ml-1" /> High
+              <div className="flex items-center gap-3 text-[10px] font-semibold">
+                <span className="flex items-center gap-1"><span className="w-2 h-2 rounded-sm bg-rose-500" /> Critical</span>
+                <span className="flex items-center gap-1"><span className="w-2 h-2 rounded-sm bg-amber-500" /> Low Risk</span>
+                <span className="flex items-center gap-1"><span className="w-2 h-2 rounded-sm bg-emerald-500" /> Clear</span>
               </div>
             </div>
-            <WorkloadHeatmap data={trends} />
+            <DailyRiskBars data={trends} />
           </motion.div>
         </div>
       </div>

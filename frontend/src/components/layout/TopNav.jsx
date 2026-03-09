@@ -1,5 +1,5 @@
 ﻿import { useLocation } from 'react-router-dom';
-import { Sun, Moon, Bell, Search, CalendarDays } from 'lucide-react';
+import { Sun, Moon, Search, CalendarDays } from 'lucide-react';
 import { useThemeStore } from '../../store/themeStore';
 import { useAuthStore } from '../../store/authStore';
 import { useState } from 'react';
@@ -49,13 +49,7 @@ export default function TopNav() {
         {theme === 'dark' ? <Sun className="w-4 h-4" /> : <Moon className="w-4 h-4" />}
       </button>
 
-      {/* Notification bell */}
-      <div className="relative">
-        <button className="w-8 h-8 rounded-xl flex items-center justify-center text-muted-foreground hover:bg-accent hover:text-foreground transition-colors">
-          <Bell className="w-4 h-4" />
-        </button>
-        <span className="absolute -top-0.5 -right-0.5 w-4 h-4 rounded-full bg-primary text-[9px] font-bold text-primary-foreground flex items-center justify-center shadow-sm">5</span>
-      </div>
+
 
       {/* Avatar */}
       <div className="flex items-center gap-2">
