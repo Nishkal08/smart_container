@@ -14,7 +14,7 @@ const MOBILE_NAV = [
 
 export default function MainLayout() {
   return (
-    <div className="flex h-screen w-full bg-background overflow-hidden">
+    <div className="flex h-screen w-full bg-background overflow-hidden p-3 gap-3">
       <Sidebar />
       <div className="flex flex-col flex-1 min-w-0 overflow-hidden">
         <TopNav />
