@@ -64,7 +64,7 @@ export default function Sidebar() {
     if (logoClicks.current >= 5) {
       logoClicks.current = 0;
       setShipSailing(true);
-      setTimeout(() => setShipSailing(false), 4800);
+      setTimeout(() => setShipSailing(false), 4000);
     }
   }, []);
 
@@ -166,7 +166,7 @@ export default function Sidebar() {
           key="easter-ship"
           initial={{ x: '-18vw', opacity: 0 }}
           animate={{ x: '112vw', opacity: [0, 1, 1, 1, 0.8, 0] }}
-          transition={{ duration: 4.5, ease: 'linear' }}
+          transition={{ duration: 4.0, ease: 'linear' }}
           className="fixed bottom-10 z-[9999] pointer-events-none select-none flex items-center gap-2"
         >
           <span className="text-3xl drop-shadow-xl" style={{ filter: 'drop-shadow(0 0 8px hsl(var(--primary)))' }}>&#x1F6A2;</span>

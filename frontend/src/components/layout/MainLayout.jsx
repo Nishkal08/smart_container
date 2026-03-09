@@ -19,15 +19,15 @@ export default function MainLayout() {
       <div
         className="absolute z-[-1] orb-pulse pointer-events-none"
         style={{
-          top: '-35%', right: '-20%', width: '80%', height: '95%',
-          background: 'radial-gradient(ellipse at center, hsl(var(--primary) / 0.24) 0%, transparent 65%)',
+          top: '-40%', right: '-25%', width: '90%', height: '110%',
+          background: 'radial-gradient(ellipse at center, hsl(var(--primary) / 0.38) 0%, hsl(var(--primary) / 0.12) 40%, transparent 68%)',
         }}
       />
       <div
         className="absolute z-[-1] orb-pulse-slow pointer-events-none"
         style={{
-          bottom: '-30%', left: '0%', width: '60%', height: '75%',
-          background: 'radial-gradient(ellipse at center, hsl(var(--primary) / 0.10) 0%, transparent 65%)',
+          bottom: '-35%', left: '-10%', width: '70%', height: '85%',
+          background: 'radial-gradient(ellipse at center, hsl(var(--primary) / 0.18) 0%, transparent 65%)',
         }}
       />
       <Sidebar />

@@ -1,4 +1,5 @@
 ﻿import { useState, useEffect, useRef } from 'react';
+import { createPortal } from 'react-dom';
 import { useQuery, useQueries, useMutation, useQueryClient } from '@tanstack/react-query';
 import { motion } from 'framer-motion';
 import { toast } from 'sonner';
@@ -442,8 +443,8 @@ export default function Jobs() {
         </table>
       </div>
 
-      {/* Detail drawer */}
-      {selected && (
+      {/* Detail drawer — rendered in portal to escape backdrop-filter stacking context */}
+      {selected && createPortal((
         <div className="fixed inset-0 z-40 flex" onClick={() => setSelected(null)}>
           <div className="flex-1 bg-black/30 backdrop-blur-[1px]" />
           <div ref={drawerRef} className="w-[420px] bg-card border-l border-border shadow-xl h-full overflow-y-auto"
@@ -590,10 +591,10 @@ export default function Jobs() {
             </div>
           </div>
         </div>
-      )}
+      ), document.body)}
 
-      {/* Delete confirmation dialog */}
-      {confirmDelete && (
+      {/* Delete confirmation dialog — also portaled */}
+      {confirmDelete && createPortal((
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm"
           onClick={() => !deleteMutation.isPending && setConfirmDelete(null)}>
           <div className="bg-card rounded-xl border border-border shadow-2xl w-full max-w-sm mx-4 p-6 space-y-4"
@@ -632,7 +633,7 @@ export default function Jobs() {
             </div>
           </div>
         </div>
-      )}
+      ), document.body)}
 
       {/* New Batch Job dialog */}
       {showNewJob && <NewJobDialog onClose={() => setShowNewJob(false)} />}

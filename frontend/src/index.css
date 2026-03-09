@@ -30,9 +30,9 @@
     --sidebar-border: 30 12% 90%;
     --radius: 0.875rem;
     /* Glass morphism */
-    --glass-bg: rgba(255, 255, 255, 0.68);
-    --glass-border: rgba(255, 255, 255, 0.85);
-    --glass-shadow: 0 4px 24px rgba(0, 0, 0, 0.07), inset 0 1px 0 rgba(255, 255, 255, 0.92);
+    --glass-bg: rgba(255, 255, 255, 0.42);
+    --glass-border: rgba(255, 255, 255, 0.88);
+    --glass-shadow: 0 4px 28px rgba(0, 0, 0, 0.09), inset 0 1px 0 rgba(255, 255, 255, 1);
   }
   .dark {
     /* Momentum dark: deep warm brown-black */
@@ -59,9 +59,9 @@
     --sidebar-border: 20 8% 14%;
     --radius: 0.875rem;
     /* Glass morphism */
-    --glass-bg: rgba(18, 14, 10, 0.58);
-    --glass-border: rgba(255, 255, 255, 0.08);
-    --glass-shadow: 0 8px 32px rgba(0, 0, 0, 0.45), inset 0 1px 0 rgba(255, 255, 255, 0.05);
+    --glass-bg: rgba(12, 9, 6, 0.22);
+    --glass-border: rgba(255, 255, 255, 0.07);
+    --glass-shadow: 0 8px 40px rgba(0, 0, 0, 0.55), inset 0 1px 0 rgba(255, 255, 255, 0.06);
   }
 }
 
@@ -88,7 +88,7 @@
 
   /* Glass morphism card — adapts to dark/light via CSS vars */
   .glass-card {
-    @apply backdrop-blur-xl;
+    @apply backdrop-blur-2xl;
     background: var(--glass-bg);
     border: 1px solid var(--glass-border);
     box-shadow: var(--glass-shadow);
