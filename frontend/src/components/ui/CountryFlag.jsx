@@ -71,8 +71,13 @@ export function getCountryName(code) {
   return ISO_TO_NAME[upper] ?? code;
 }
 
-// Width in px → use 2× for retina
-const SIZE_MAP = { sm: 18, md: 22, lg: 28 };
+// flagcdn.com only serves specific fixed widths: 20, 40, 80, 160, 320, 640, 1280, 2560
+// Display size in px → [display w, display h, CDN width param]
+const SIZE_MAP = {
+  sm: { w: 20, h: 15, cdn: 40  },   // 2x retina
+  md: { w: 22, h: 16, cdn: 40  },
+  lg: { w: 28, h: 21, cdn: 80  },
+};
 
 export default function CountryFlag({ code, size = 'sm', showName = false }) {
   if (!code) return null;
@@ -82,10 +87,9 @@ export default function CountryFlag({ code, size = 'sm', showName = false }) {
   if (!iso) return showName ? <span>{getCountryName(code)}</span> : null;
 
   const name = ISO_TO_NAME[iso.toUpperCase()] ?? code;
-  const w = SIZE_MAP[size] ?? 18;
-  const h = Math.round(w * 0.75);
-  // flagcdn.com — free, reliable flag images; use 2× width for retina sharpness
-  const src = `https://flagcdn.com/w${w * 2}/${iso.toLowerCase()}.png`;
+  const { w, h, cdn } = SIZE_MAP[size] ?? SIZE_MAP.sm;
+  // flagcdn.com — free CDN; cdn param must be a valid fixed width (40, 80, 160…)
+  const src = `https://flagcdn.com/w${cdn}/${iso.toLowerCase()}.png`;
 
   const img = (
     <img
@@ -95,6 +99,7 @@ export default function CountryFlag({ code, size = 'sm', showName = false }) {
       width={w}
       height={h}
       loading="lazy"
+      onError={(e) => { e.currentTarget.style.display = 'none'; }}
       className="rounded-[2px] inline-block object-cover shrink-0 shadow-sm"
       style={{ display: 'inline-block' }}
     />

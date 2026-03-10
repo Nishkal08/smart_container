@@ -136,7 +136,12 @@ export default function Login() {
       login(res.data.user, res.data.accessToken, res.data.refreshToken);
       navigate('/');
     } catch (err) {
-      const msg = err.response?.data?.error?.message ?? err.response?.data?.message ?? 'Invalid email or password';
+      let msg;
+      if (!err.response) {
+        msg = 'Cannot connect to server. Please check your network or try again later.';
+      } else {
+        msg = err.response?.data?.error?.message ?? err.response?.data?.message ?? 'Invalid email or password';
+      }
       setServerError(msg);
       gsap.fromTo(formPanelRef.current, { x: -10 }, { x: 0, duration: 0.5, ease: 'elastic.out(1, 0.3)' });
     } finally {

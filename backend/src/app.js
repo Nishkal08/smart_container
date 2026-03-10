@@ -27,13 +27,17 @@ initSocketServer(httpServer);
 app.use(helmet());
 app.use(cors({
   origin: (origin, callback) => {
-    const allowed = envConfig.CORS_ORIGINS.split(',').map(o => o.trim());
-    // Allow requests with no origin (curl, Postman, server-to-server)
-    if (!origin || allowed.includes(origin)) {
-      callback(null, true);
-    } else {
-      callback(new Error(`Origin ${origin} not allowed by CORS`));
+    // Build allowed list from CORS_ORIGINS + optional FRONTEND_URL
+    const base = envConfig.CORS_ORIGINS ? envConfig.CORS_ORIGINS.split(',').map(o => o.trim()).filter(Boolean) : [];
+    if (envConfig.FRONTEND_URL && !base.includes(envConfig.FRONTEND_URL.trim())) {
+      base.push(envConfig.FRONTEND_URL.trim());
     }
+    // Allow requests with no origin (curl, Postman, server-to-server)
+    if (!origin) return callback(null, true);
+    if (base.includes(origin)) return callback(null, true);
+    // Allow any *.vercel.app preview deployment in non-production so previews work
+    if (envConfig.NODE_ENV !== 'production' && /\.vercel\.app$/.test(origin)) return callback(null, true);
+    callback(new Error(`Origin ${origin} not allowed by CORS`));
   },
   credentials: true,
 }));

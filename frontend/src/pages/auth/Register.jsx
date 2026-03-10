@@ -149,12 +149,18 @@ export default function Register() {
       login(res.data.user, res.data.accessToken, res.data.refreshToken);
       navigate('/');
     } catch (err) {
-      const details = err.response?.data?.error?.details;
-      if (details?.length) {
-        setServerError(details.map(d => d.message).join(' · '));
+      let msg;
+      if (!err.response) {
+        msg = 'Cannot connect to server. Please check your network or try again later.';
       } else {
-        setServerError(err.response?.data?.error?.message ?? err.response?.data?.message ?? 'Registration failed');
+        const details = err.response?.data?.error?.details;
+        if (details?.length) {
+          msg = details.map(d => d.message).join(' · ');
+        } else {
+          msg = err.response?.data?.error?.message ?? err.response?.data?.message ?? 'Registration failed';
+        }
       }
+      setServerError(msg);
       gsap.fromTo(formPanelRef.current, { x: -10 }, { x: 0, duration: 0.5, ease: 'elastic.out(1, 0.3)' });
     } finally {
       setLoading(false);

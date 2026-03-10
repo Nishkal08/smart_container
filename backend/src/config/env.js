@@ -31,6 +31,7 @@ module.exports = {
   ML_SERVICE_API_KEY: process.env.ML_SERVICE_API_KEY,
 
   CORS_ORIGINS: process.env.CORS_ORIGINS || 'http://localhost:5173',
+  FRONTEND_URL: process.env.FRONTEND_URL || '',  // e.g. https://your-app.vercel.app
 
   RATE_LIMIT_WINDOW_MS: parseInt(process.env.RATE_LIMIT_WINDOW_MS || '900000', 10),
   RATE_LIMIT_MAX: parseInt(process.env.RATE_LIMIT_MAX || '100', 10),
