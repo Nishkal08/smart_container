@@ -74,7 +74,7 @@ export default function TopNav() {
   };
 
   return (
-    <div className="shrink-0 flex flex-col gap-2">
+    <div className="shrink-0 flex flex-col gap-2 z-40 relative">
       <header className="flex items-center gap-3 rounded-xl glass-card px-4 py-2.5">
         {/* Mobile: logo + page title (hidden on sm+) */}
         <div className="flex sm:hidden items-center gap-2 min-w-0 flex-1">
@@ -136,7 +136,7 @@ export default function TopNav() {
           </button>
 
           {dropdownOpen && (
-            <div className="absolute right-0 top-full mt-2 w-56 bg-card border border-border rounded-xl shadow-xl shadow-black/10 dark:shadow-black/40 z-50 overflow-hidden">
+            <div className="absolute right-0 top-full mt-2 w-56 bg-card border border-border rounded-xl shadow-xl shadow-black/10 dark:shadow-black/40 z-[100] overflow-hidden">
               <div className="px-4 py-3 border-b border-border">
                 <div className="flex items-center gap-2.5">
                   <div className="w-8 h-8 rounded-full bg-primary flex items-center justify-center shrink-0 shadow shadow-primary/30">
