@@ -57,21 +57,13 @@ const ISO_TO_NAME = {
   TH: 'Thailand', TR: 'Turkey', UA: 'Ukraine', AE: 'United Arab Emirates',
   GB: 'United Kingdom', US: 'United States', UY: 'Uruguay', UZ: 'Uzbekistan',
   VE: 'Venezuela', VN: 'Vietnam', YE: 'Yemen', ZM: 'Zambia', ZW: 'Zimbabwe',
-  SO: 'Somalia', CF: 'Central African Republic',
+  SO: 'Somalia',
 };
-
-function toFlagEmoji(isoCode) {
-  if (!isoCode || isoCode.length !== 2) return null;
-  const code = isoCode.toUpperCase();
-  const offset = 127397;
-  return String.fromCodePoint(...[...code].map(c => c.charCodeAt(0) + offset));
-}
 
 /** Returns the friendly full country name for a 2-letter ISO code or stored name. */
 export function getCountryName(code) {
   if (!code) return code;
   const upper = code.toUpperCase().trim();
-  // Already a full name stored in the reverse map
   if (upper.length > 2) {
     const iso = COUNTRY_TO_ISO[upper];
     return iso ? (ISO_TO_NAME[iso] ?? code) : code;
@@ -79,28 +71,43 @@ export function getCountryName(code) {
   return ISO_TO_NAME[upper] ?? code;
 }
 
+// Width in px → use 2× for retina
+const SIZE_MAP = { sm: 18, md: 22, lg: 28 };
+
 export default function CountryFlag({ code, size = 'sm', showName = false }) {
   if (!code) return null;
 
   const upper = code.toUpperCase().trim();
   const iso = COUNTRY_TO_ISO[upper] || (upper.length === 2 ? upper : null);
-
   if (!iso) return showName ? <span>{getCountryName(code)}</span> : null;
 
-  const emoji = toFlagEmoji(iso);
-  if (!emoji) return showName ? <span>{getCountryName(code)}</span> : null;
-
-  const sizeClass = size === 'sm' ? 'text-sm' : size === 'md' ? 'text-lg' : 'text-xl';
   const name = ISO_TO_NAME[iso.toUpperCase()] ?? code;
+  const w = SIZE_MAP[size] ?? 18;
+  const h = Math.round(w * 0.75);
+  // flagcdn.com — free, reliable flag images; use 2× width for retina sharpness
+  const src = `https://flagcdn.com/w${w * 2}/${iso.toLowerCase()}.png`;
+
+  const img = (
+    <img
+      src={src}
+      alt={name}
+      title={name}
+      width={w}
+      height={h}
+      loading="lazy"
+      className="rounded-[2px] inline-block object-cover shrink-0 shadow-sm"
+      style={{ display: 'inline-block' }}
+    />
+  );
 
   if (showName) {
     return (
       <span className="inline-flex items-center gap-1.5">
-        <span className={sizeClass}>{emoji}</span>
+        {img}
         <span>{name}</span>
       </span>
     );
   }
 
-  return <span className={sizeClass} title={name}>{emoji}</span>;
+  return img;
 }

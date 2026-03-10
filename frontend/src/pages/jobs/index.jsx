@@ -249,12 +249,12 @@ export default function Jobs() {
     onError: (e) => toast.error(e.response?.data?.message ?? 'Delete failed'),
   });
 
-  // ── Animate drawer in when a job is selected ─────────────────────────────
+  // ── Animate modal in when a job is selected ────────────────────────────
   useEffect(() => {
     if (selected && drawerRef.current) {
       gsap.fromTo(drawerRef.current,
-        { x: 60, opacity: 0 },
-        { x: 0, opacity: 1, duration: 0.3, ease: 'power3.out' }
+        { opacity: 0, scale: 0.94, y: 18 },
+        { opacity: 1, scale: 1, y: 0, duration: 0.32, ease: 'power3.out' }
       );
     }
   }, [selected?.id]);
@@ -443,18 +443,18 @@ export default function Jobs() {
         </table>
       </div>
 
-      {/* Detail drawer — rendered in portal to escape backdrop-filter stacking context */}
+      {/* Detail modal — rendered in portal to escape backdrop-filter stacking context */}
       {selected && createPortal((
-        <div className="fixed inset-0 z-40 flex" onClick={() => setSelected(null)}>
-          <div className="flex-1 bg-black/30 backdrop-blur-[1px]" />
-          <div ref={drawerRef} className="w-[420px] bg-card border-l border-border shadow-xl h-full overflow-y-auto"
+        <div className="fixed inset-0 z-40 flex items-center justify-center p-4" onClick={() => setSelected(null)}>
+          <div className="absolute inset-0 bg-black/50 backdrop-blur-[2px]" />
+          <div ref={drawerRef} className="relative z-10 w-full max-w-2xl bg-card rounded-2xl border border-border shadow-2xl overflow-y-auto max-h-[90vh]"
             onClick={e => e.stopPropagation()}>
 
-            {/* Drawer header */}
-            <div className="flex items-start justify-between px-5 pt-5 pb-4 border-b border-border">
+            {/* Modal header */}
+            <div className="flex items-start justify-between px-6 pt-6 pb-4 border-b border-border">
               <div className="flex-1 min-w-0 pr-3">
-                <p className="text-xs font-medium text-muted-foreground uppercase tracking-wider mb-1">Batch Job</p>
-                <h2 className="font-semibold text-base leading-tight truncate">{selected.name ?? `Job ${selected.id.slice(0, 8)}`}</h2>
+                <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-1">Job Details</p>
+                <h2 className="font-bold text-lg leading-tight truncate">{selected.name ?? `Job ${selected.id.slice(0, 8)}`}</h2>
                 <button
                   onClick={() => { navigator.clipboard.writeText(selected.id); toast.success('ID copied'); }}
                   className="flex items-center gap-1 mt-1 text-xs text-muted-foreground hover:text-foreground transition-colors group">
@@ -467,7 +467,7 @@ export default function Jobs() {
               </button>
             </div>
 
-            <div className="p-5 space-y-5">
+            <div className="p-6 space-y-5">
               {detailLoading && !jobDetail && (
                 <div className="flex items-center gap-2 text-xs text-muted-foreground py-2">
                   <Loader2 className="w-3.5 h-3.5 animate-spin" /> Loading details…
@@ -492,11 +492,22 @@ export default function Jobs() {
                 </div>
               </div>
 
-              {/* Metrics grid */}
-              <div className="grid grid-cols-2 gap-2.5">
+              {/* Metrics grid - 4 columns in wider modal */}
+              <div className="grid grid-cols-2 sm:grid-cols-4 gap-2.5">
                 {[
                   { label: 'Total', value: (jobDetail ?? selected).total_containers ?? '—', cls: '' },
+                  { label: 'Processed', value: (jobDetail ?? selected).processed_count ?? 0, cls: '' },
                   { label: 'Failed', value: (jobDetail ?? selected).failed_count ?? 0, cls: (jobDetail ?? selected).failed_count > 0 ? 'text-red-600' : '' },
+                  {
+                    label: 'Success Rate',
+                    value: (() => {
+                      const total = (jobDetail ?? selected).total_containers;
+                      const failed = (jobDetail ?? selected).failed_count ?? 0;
+                      if (!total) return '—';
+                      return `${Math.round(((total - failed) / total) * 100)}%`;
+                    })(),
+                    cls: 'text-emerald-600',
+                  },
                 ].map(({ label, value, cls }) => (
                   <div key={label} className="rounded-lg border border-border bg-card p-3">
                     <p className="text-xs text-muted-foreground mb-1">{label}</p>
