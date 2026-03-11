@@ -47,9 +47,4 @@ async function resetPassword(req, res) {
   return success(res, result);
 }
 
-async function googleAuth(req, res) {
-  const result = await authService.googleAuth(req.body);
-  return success(res, result);
-}
-
-module.exports = { register, login, googleAuth, refresh, logout, me, changePassword, forgotPassword, resetPassword };
+module.exports = { register, login, refresh, logout, me, changePassword, forgotPassword, resetPassword };

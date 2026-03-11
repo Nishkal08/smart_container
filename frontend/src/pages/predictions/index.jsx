@@ -42,15 +42,15 @@ function SHAPChart({ contributions }) {
   return (
     <div className="mt-3">
       <p className="text-xs font-semibold text-muted-foreground mb-2">Risk Factor Contributions</p>
-      <ResponsiveContainer width="100%" height={Math.min(data.length * 32 + 20, 220)}>
-        <BarChart data={data} layout="vertical" margin={{ top: 0, right: 4, left: 0, bottom: 0 }}>
+      <ResponsiveContainer width="100%" height={data.length * 32 + 20}>
+        <BarChart data={data} layout="vertical" margin={{ top: 0, right: 10, left: 0, bottom: 0 }}>
           <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" horizontal={false} />
-          <XAxis type="number" tick={{ fontSize: 10, fill: 'hsl(var(--muted-foreground))' }} axisLine={false} />
+          <XAxis type="number" tick={{ fontSize: 10, fill: 'hsl(var(--muted-foreground))' }} />
           <YAxis
             type="category"
             dataKey="feature"
-            width={110}
-            tick={{ fontSize: 9, fill: 'hsl(var(--muted-foreground))' }}
+            width={140}
+            tick={{ fontSize: 10, fill: 'hsl(var(--muted-foreground))' }}
           />
           <Tooltip
             contentStyle={{ background: 'hsl(var(--card))', border: '1px solid hsl(var(--border))', borderRadius: 6, fontSize: 12 }}
@@ -201,7 +201,7 @@ function SinglePredictDialog({ onClose }) {
           {/* Required fields */}
           <div>
             <p className="text-[10px] font-semibold text-muted-foreground uppercase tracking-widest mb-3">Required Fields</p>
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+            <div className="grid grid-cols-2 gap-3">
               <Field label="Container ID" required error={errors.container_id}>
                 <input value={form.container_id} onChange={set('container_id')} placeholder="e.g. CONT_0001234"
                   className={inp(errors.container_id)} />
@@ -238,7 +238,7 @@ function SinglePredictDialog({ onClose }) {
           {/* Optional fields */}
           <div>
             <p className="text-[10px] font-semibold text-muted-foreground uppercase tracking-widest mb-3">Optional Fields</p>
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+            <div className="grid grid-cols-2 gap-3">
               <Field label="Destination Country">
                 <input value={form.destination_country} onChange={set('destination_country')} placeholder="e.g. US"
                   className={inp(false)} />
@@ -389,7 +389,7 @@ export default function Predictions() {
   });
 
   return (
-    <div className={`space-y-5 animate-fade-in transition-all duration-300 ${selected ? 'sm:pr-[500px]' : ''}`}>
+    <div className={`space-y-5 animate-fade-in transition-all duration-300 ${selected ? 'pr-[500px]' : ''}`}>
       {/* Global Stats */}
       <div className="grid grid-cols-3 gap-3">
         {[
@@ -462,8 +462,8 @@ export default function Predictions() {
       </div>
 
       {/* Predictions Table */}
-      <div className="rounded-lg border border-border bg-card overflow-x-auto">
-        <table className="w-full min-w-[700px] text-sm">
+      <div className="rounded-lg border border-border bg-card overflow-hidden">
+        <table className="w-full text-sm">
           <thead>
             <tr className="border-b border-border bg-muted/30">
               {['Container ID', 'Origin', 'Destination', 'Importer', 'Risk Score', 'Risk Level', 'Top SHAP Factor', 'Model', 'Date', ''].map(h => (
@@ -617,7 +617,7 @@ export default function Predictions() {
               animate={{ x: 0 }}
               exit={{ x: '100%' }}
               transition={{ type: 'spring', stiffness: 320, damping: 32, mass: 0.8 }}
-              className="fixed right-0 top-14 bottom-0 w-full sm:w-[500px] bg-card border-l border-border shadow-xl z-40 overflow-y-auto"
+              className="fixed right-0 top-14 bottom-0 w-[500px] bg-card border-l border-border shadow-xl z-40 overflow-y-auto"
               onClick={e => e.stopPropagation()}
             >
             {/* Header */}

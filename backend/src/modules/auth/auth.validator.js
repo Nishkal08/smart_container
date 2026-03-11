@@ -1,9 +1,5 @@
 const { z } = require('zod');
 
-const googleAuthSchema = z.object({
-  access_token: z.string().min(1, 'Google access token is required'),
-});
-
 const registerSchema = z.object({
   name: z.string().min(2).max(100),
   email: z.string().email(),
@@ -46,4 +42,4 @@ const resetPasswordSchema = z.object({
     .regex(/[0-9]/, 'Password must contain at least one number'),
 });
 
-module.exports = { googleAuthSchema, registerSchema, loginSchema, refreshSchema, changePasswordSchema, forgotPasswordSchema, resetPasswordSchema };
+module.exports = { registerSchema, loginSchema, refreshSchema, changePasswordSchema, forgotPasswordSchema, resetPasswordSchema };

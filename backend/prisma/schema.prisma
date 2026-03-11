@@ -41,7 +41,6 @@ model User {
   id            String    @id @default(uuid())
   email         String    @unique
   password_hash String
-  google_id     String?   @unique
   name          String
   role          Role      @default(ANALYST)
   is_active     Boolean   @default(true)

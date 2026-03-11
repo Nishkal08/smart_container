@@ -186,9 +186,9 @@ export default function Insights() {
 
       {/* Risk Trends */}
       <ChartCard>
-        <div className="flex flex-col sm:flex-row sm:items-center justify-between mb-4 gap-3">
+        <div className="flex items-center justify-between mb-4">
           <SectionHeader title="Risk Classification Trends" sub="Daily prediction volume by risk level" />
-          <div className="flex items-center gap-1 self-start sm:self-auto">
+          <div className="flex items-center gap-1">
             {TREND_PERIODS.map(p => (
               <button key={p.value} onClick={() => setPeriod(p.value)}
                 className={`text-xs px-3 py-1.5 rounded-md font-medium transition-colors border ${period === p.value
@@ -206,11 +206,11 @@ export default function Insights() {
           <EmptyChart />
         ) : (
           <ResponsiveContainer width="100%" height={220}>
-            <LineChart data={trends} margin={{ top: 4, right: 4, left: -16, bottom: 0 }}>
+            <LineChart data={trends} margin={{ top: 4, right: 4, left: -20, bottom: 0 }}>
               <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" />
               <XAxis dataKey="date" tick={{ fontSize: 10, fill: 'hsl(var(--muted-foreground))' }}
-                tickFormatter={d => d.slice(5)} axisLine={false} tickLine={false} interval="preserveStartEnd" />
-              <YAxis tick={{ fontSize: 10, fill: 'hsl(var(--muted-foreground))' }} axisLine={false} tickLine={false} width={28} />
+                tickFormatter={d => d.slice(5)} axisLine={false} tickLine={false} />
+              <YAxis tick={{ fontSize: 10, fill: 'hsl(var(--muted-foreground))' }} axisLine={false} tickLine={false} />
               <Tooltip contentStyle={toolTipStyle} />
               <Legend iconSize={8} wrapperStyle={{ fontSize: 11 }} />
               {Object.entries(RISK_COLORS).map(([key, color]) => (
@@ -237,7 +237,7 @@ export default function Insights() {
                 <YAxis
                   dataKey="anomaly"
                   type="category"
-                width={120}
+                  width={130}
                   tick={{ fontSize: 10, fill: 'hsl(var(--muted-foreground))' }}
                   tickFormatter={v => v?.replace(/_/g, ' ') ?? ''}
                 />
@@ -293,14 +293,14 @@ export default function Insights() {
         {scatterData.length === 0 ? (
           <EmptyChart />
         ) : (
-          <ResponsiveContainer width="100%" height={240}>
-            <ScatterChart margin={{ top: 4, right: 8, left: -10, bottom: 16 }}>
+          <ResponsiveContainer width="100%" height={260}>
+            <ScatterChart margin={{ top: 4, right: 4, left: -10, bottom: 0 }}>
               <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" />
               <XAxis dataKey="weight" name="Weight (kg)" type="number"
                 tick={{ fontSize: 10, fill: 'hsl(var(--muted-foreground))' }}
-                label={{ value: 'Weight (kg)', position: 'insideBottom', offset: -8, fontSize: 10, fill: 'hsl(var(--muted-foreground))' }} />
+                label={{ value: 'Weight (kg)', position: 'insideBottom', offset: -2, fontSize: 10, fill: 'hsl(var(--muted-foreground))' }} />
               <YAxis dataKey="value" name="Declared Value (USD)" type="number"
-                tick={{ fontSize: 10, fill: 'hsl(var(--muted-foreground))' }} width={40} />
+                tick={{ fontSize: 10, fill: 'hsl(var(--muted-foreground))' }} />
               <Tooltip
                 contentStyle={toolTipStyle}
                 formatter={(v, n) => [v?.toLocaleString(), n]}
