@@ -7,13 +7,19 @@ import './index.css'
 import App from './App.jsx'
 import queryClient from './lib/queryClient.js'
 
+const googleClientId = import.meta.env.VITE_GOOGLE_CLIENT_ID
+
+const app = (
+  <QueryClientProvider client={queryClient}>
+    <App />
+    <Toaster richColors position="top-right" closeButton />
+  </QueryClientProvider>
+)
+
 createRoot(document.getElementById('root')).render(
   <StrictMode>
-    <GoogleOAuthProvider clientId={import.meta.env.VITE_GOOGLE_CLIENT_ID ?? ''}>
-      <QueryClientProvider client={queryClient}>
-        <App />
-        <Toaster richColors position="top-right" closeButton />
-      </QueryClientProvider>
-    </GoogleOAuthProvider>
+    {googleClientId
+      ? <GoogleOAuthProvider clientId={googleClientId}>{app}</GoogleOAuthProvider>
+      : app}
   </StrictMode>,
 )
