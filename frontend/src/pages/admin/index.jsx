@@ -112,12 +112,12 @@ export default function Admin() {
       </div>
 
       {/* Users Table */}
-      <div className="rounded-lg border border-border bg-card overflow-hidden">
+      <div className="rounded-lg border border-border bg-card overflow-x-auto">
         <div className="px-5 py-4 border-b border-border flex items-center justify-between">
           <h3 className="text-sm font-semibold">User Management</h3>
           <span className="text-xs text-muted-foreground">{userList.length} user{userList.length !== 1 ? 's' : ''}</span>
         </div>
-        <table className="w-full text-sm">
+        <table className="w-full min-w-[560px] text-sm">
           <thead>
             <tr className="border-b border-border bg-muted/30">
               {['Name', 'Email', 'Role', 'Status', 'Joined', 'Actions'].map(h => (

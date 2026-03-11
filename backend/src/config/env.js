@@ -41,4 +41,6 @@ module.exports = {
   UPLOAD_DIR: process.env.UPLOAD_DIR || './uploads',
 
   LOG_LEVEL: process.env.LOG_LEVEL || 'info',
+
+  GOOGLE_CLIENT_ID: process.env.GOOGLE_CLIENT_ID || '',
 };

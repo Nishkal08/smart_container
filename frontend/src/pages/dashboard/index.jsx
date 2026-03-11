@@ -117,11 +117,11 @@ function DailyRiskBars({ data }) {
 
   return (
     <ResponsiveContainer width="100%" height={140}>
-      <BarChart data={days} margin={{ top: 0, right: 0, left: -28, bottom: 0 }} barSize={10} barCategoryGap="30%">
+      <BarChart data={days} margin={{ top: 0, right: 0, left: -20, bottom: 0 }} barSize={10} barCategoryGap="30%">
         <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" vertical={false} />
         <XAxis dataKey="label" tick={{ fontSize: 9, fill: 'hsl(var(--muted-foreground))' }}
-          axisLine={false} tickLine={false} dy={6} />
-        <YAxis tick={{ fontSize: 9, fill: 'hsl(var(--muted-foreground))' }} axisLine={false} tickLine={false} allowDecimals={false} />
+          axisLine={false} tickLine={false} dy={6} interval="preserveStartEnd" />
+        <YAxis tick={{ fontSize: 9, fill: 'hsl(var(--muted-foreground))' }} axisLine={false} tickLine={false} allowDecimals={false} width={28} />
         <Tooltip
           contentStyle={{ background: 'hsl(var(--card))', border: '1px solid hsl(var(--border))', borderRadius: 10, fontSize: 11 }}
           cursor={{ fill: 'hsl(var(--muted)/0.3)' }}
@@ -362,12 +362,12 @@ export default function Dashboard() {
 
           {/* Trend Chart */}
           <motion.div variants={itemVariants} className="rounded-2xl glass-card p-5 flex-1">
-            <div className="flex items-center justify-between mb-4">
+            <div className="flex flex-col sm:flex-row sm:items-start justify-between mb-4 gap-2">
               <div>
                 <h3 className="text-sm font-bold">Daily Risk Trend</h3>
                 <p className="text-xs text-muted-foreground">Prediction volume by risk level — last 30 days</p>
               </div>
-              <div className="flex items-center gap-3 text-[11px] font-semibold">
+              <div className="flex flex-wrap items-center gap-2 text-[11px] font-semibold">
                 {Object.entries(PIE_COLORS).map(([k, c]) => (
                   <span key={k} className="flex items-center gap-1.5">
                     <span className="w-2 h-2 rounded-full" style={{ background: c }} />
@@ -377,10 +377,10 @@ export default function Dashboard() {
               </div>
             </div>
             {trendLoad ? (
-              <div className="h-[180px] animate-pulse bg-muted/40 rounded-xl" />
+              <div className="h-[160px] animate-pulse bg-muted/40 rounded-xl" />
             ) : (
-              <ResponsiveContainer width="100%" height={180}>
-                <AreaChart data={trends ?? []} margin={{ top: 5, right: 5, left: -28, bottom: 0 }}>
+              <ResponsiveContainer width="100%" height={160}>
+                <AreaChart data={trends ?? []} margin={{ top: 5, right: 5, left: -20, bottom: 0 }}>
                   <defs>
                     {Object.entries(PIE_COLORS).map(([key, color]) => (
                       <linearGradient key={key} id={`mg-${key}`} x1="0" y1="0" x2="0" y2="1">
@@ -391,8 +391,8 @@ export default function Dashboard() {
                   </defs>
                   <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" vertical={false} />
                   <XAxis dataKey="date" tick={{ fontSize: 10, fill: 'hsl(var(--muted-foreground))' }}
-                    tickFormatter={d => d.slice(5)} axisLine={false} tickLine={false} dy={8} />
-                  <YAxis tick={{ fontSize: 10, fill: 'hsl(var(--muted-foreground))' }} axisLine={false} tickLine={false} />
+                    tickFormatter={d => d.slice(5)} axisLine={false} tickLine={false} dy={8} interval="preserveStartEnd" />
+                  <YAxis tick={{ fontSize: 10, fill: 'hsl(var(--muted-foreground))' }} axisLine={false} tickLine={false} width={28} />
                   <Tooltip
                     contentStyle={{ background: 'hsl(var(--card))', border: '1px solid hsl(var(--border))', borderRadius: 10, fontSize: 12, boxShadow: '0 8px 20px rgba(0,0,0,.12)' }}
                   />
@@ -407,12 +407,12 @@ export default function Dashboard() {
 
           {/* Daily Risk Distribution stacked bar */}
           <motion.div variants={itemVariants} className="rounded-2xl glass-card p-5">
-            <div className="flex items-center justify-between mb-4">
+            <div className="flex flex-col sm:flex-row sm:items-start justify-between mb-4 gap-2">
               <div>
                 <h3 className="text-sm font-bold">Daily Risk Distribution</h3>
                 <p className="text-xs text-muted-foreground">Stacked breakdown per day — last 14 days</p>
               </div>
-              <div className="flex items-center gap-3 text-[10px] font-semibold">
+              <div className="flex flex-wrap items-center gap-2 text-[10px] font-semibold">
                 <span className="flex items-center gap-1"><span className="w-2 h-2 rounded-sm bg-rose-500" /> Critical</span>
                 <span className="flex items-center gap-1"><span className="w-2 h-2 rounded-sm bg-amber-500" /> Low Risk</span>
                 <span className="flex items-center gap-1"><span className="w-2 h-2 rounded-sm bg-emerald-500" /> Clear</span>
